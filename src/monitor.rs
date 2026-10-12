@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -12,13 +12,22 @@ use tauri::{AppHandle, Manager, Runtime};
 use crate::WINDOW_LABEL;
 
 const SAMPLE_INTERVAL: Duration = Duration::from_secs(1);
+const RECORD_INTERVAL: Duration = Duration::from_millis(250);
+const MAX_RECORD_SAMPLES: usize = 4 * 60 * 10;
 const HISTORY: usize = 300;
+const RECORDINGS_DIR: &str = "devdeck-recordings";
 const LOG_FILE: &str = "devdeck.jsonl";
 const MAX_LOG_BYTES: u64 = 4 * 1024 * 1024;
 
 static SAMPLES: Mutex<VecDeque<Value>> = Mutex::new(VecDeque::new());
 static IS_SAMPLING: AtomicBool = AtomicBool::new(false);
 static PAGE_REPORT: Mutex<Option<Value>> = Mutex::new(None);
+static RECORDING: Mutex<Option<Recording>> = Mutex::new(None);
+
+struct Recording {
+    started: u64,
+    samples: Vec<Value>
+}
 
 pub fn set_page_report(report: Value) {
     *PAGE_REPORT.lock().unwrap() = Some(report);
@@ -27,6 +36,68 @@ pub fn set_page_report(report: Value) {
 pub fn samples_json() -> Vec<u8> {
     let samples = SAMPLES.lock().unwrap();
     serde_json::to_vec(&*samples).unwrap_or_else(|_| b"[]".to_vec())
+}
+
+fn now() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |time| time.as_millis() as u64)
+}
+
+pub fn recording_json() -> Vec<u8> {
+    let recording = RECORDING.lock().unwrap();
+    let status = match &*recording {
+        Some(recording) => json!({ "isRecording": true, "started": recording.started, "samples": recording.samples.len() }),
+        None => json!({ "isRecording": false })
+    };
+    status.to_string().into_bytes()
+}
+
+pub fn start_recording() {
+    let mut recording = RECORDING.lock().unwrap();
+    if recording.is_none() {
+        *recording = Some(Recording { started: now(), samples: Vec::new() });
+    }
+}
+
+pub fn stop_recording<R: Runtime>(app: &AppHandle<R>) -> Result<Value, String> {
+    let recording = RECORDING.lock().unwrap().take().ok_or("not recording")?;
+    let stopped = now();
+    let samples = recording.samples.len();
+    let file = json!({
+        "format": "devdeck-recording",
+        "version": 1,
+        "app": app.package_info().name,
+        "started": recording.started,
+        "stopped": stopped,
+        "intervalMs": RECORD_INTERVAL.as_millis() as u64,
+        "samples": recording.samples
+    });
+
+    let dir = app.path().app_log_dir().map_err(|e| e.to_string())?.join(RECORDINGS_DIR);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join(format!("{}.devdeck.json", file_stamp(recording.started)));
+    std::fs::write(&path, file.to_string()).map_err(|e| e.to_string())?;
+
+    Ok(json!({
+        "path": path.to_string_lossy(),
+        "duration": stopped - recording.started,
+        "samples": samples
+    }))
+}
+
+pub fn reveal(path: &str) -> Result<(), String> {
+    let path = PathBuf::from(path);
+    if !path.exists() {
+        return Err("file not found".to_string());
+    }
+
+    #[cfg(windows)]
+    let result = std::process::Command::new("explorer").arg(format!("/select,{}", path.display())).spawn();
+    #[cfg(target_os = "macos")]
+    let result = std::process::Command::new("open").arg("-R").arg(&path).spawn();
+    #[cfg(not(any(windows, target_os = "macos")))]
+    let result = std::process::Command::new("xdg-open").arg(path.parent().unwrap_or(&path)).spawn();
+
+    result.map(|_| ()).map_err(|e| e.to_string())
 }
 
 pub fn start<R: Runtime>(app: AppHandle<R>) {
@@ -43,10 +114,13 @@ pub fn start<R: Runtime>(app: AppHandle<R>) {
             let _ = std::fs::remove_file(path);
         }
 
+        let mut last_live = 0;
         loop {
-            tokio::time::sleep(SAMPLE_INTERVAL).await;
+            let is_recording = RECORDING.lock().unwrap().is_some();
+            tokio::time::sleep(if is_recording { RECORD_INTERVAL } else { SAMPLE_INTERVAL }).await;
             if app.get_webview_window(WINDOW_LABEL).is_none() {
                 IS_SAMPLING.store(false, Ordering::SeqCst);
+                RECORDING.lock().unwrap().take();
                 break;
             }
 
@@ -62,7 +136,7 @@ pub fn start<R: Runtime>(app: AppHandle<R>) {
                 "cpu": process.cpu_usage()
             })).collect();
 
-            let time = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |time| time.as_millis() as u64);
+            let time = now();
             let sample = json!({
                 "time": time,
                 "processes": processes,
@@ -71,6 +145,17 @@ pub fn start<R: Runtime>(app: AppHandle<R>) {
                 },
                 "page": PAGE_REPORT.lock().unwrap().clone().unwrap_or(Value::Null)
             });
+
+            if let Some(recording) = RECORDING.lock().unwrap().as_mut() {
+                if recording.samples.len() < MAX_RECORD_SAMPLES {
+                    recording.samples.push(sample.clone());
+                }
+            }
+            let live_every = (SAMPLE_INTERVAL - RECORD_INTERVAL / 2).as_millis() as u64;
+            if time - last_live < live_every {
+                continue;
+            }
+            last_live = time;
 
             if let Some(path) = &log {
                 append_log(path, &sample);
@@ -82,6 +167,24 @@ pub fn start<R: Runtime>(app: AppHandle<R>) {
             }
         }
     });
+}
+
+fn file_stamp(millis: u64) -> String {
+    let seconds = millis / 1000;
+    let days = (seconds / 86_400) as i64;
+    let (hour, minute, second) = (seconds / 3600 % 24, seconds / 60 % 60, seconds % 60);
+
+    let shifted = days + 719_468;
+    let era = shifted.div_euclid(146_097);
+    let day_of_era = shifted.rem_euclid(146_097);
+    let year_of_era = (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let month_index = (5 * day_of_year + 2) / 153;
+    let day = day_of_year - (153 * month_index + 2) / 5 + 1;
+    let month = if month_index < 10 { month_index + 3 } else { month_index - 9 };
+    let year = year_of_era + era * 400 + i64::from(month <= 2);
+
+    format!("recording-{year:04}-{month:02}-{day:02}-{hour:02}{minute:02}{second:02}")
 }
 
 fn family(system: &System, root: Pid) -> Vec<&Process> {

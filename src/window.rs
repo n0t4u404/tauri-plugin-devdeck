@@ -1,6 +1,6 @@
 use tauri::{AppHandle, Manager, Runtime, Url, WebviewUrl, WebviewWindowBuilder};
 
-use crate::WINDOW_LABEL;
+use crate::{WindowSize, WINDOW_LABEL};
 
 fn window_url() -> Url {
     let url = if cfg!(any(windows, target_os = "android")) {
@@ -18,10 +18,11 @@ pub fn open<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     }
 
     let title = format!("{} — devdeck", app.package_info().name);
+    let WindowSize { size, min_size } = *app.state::<WindowSize>();
     WebviewWindowBuilder::new(app, WINDOW_LABEL, WebviewUrl::CustomProtocol(window_url()))
         .title(title)
-        .inner_size(820.0, 760.0)
-        .min_inner_size(560.0, 420.0)
+        .inner_size(size.0, size.1)
+        .min_inner_size(min_size.0, min_size.1)
         .build()
         .map_err(|e| e.to_string())?;
     crate::monitor::start(app.clone());

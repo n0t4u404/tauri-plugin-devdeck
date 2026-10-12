@@ -155,6 +155,73 @@
 			color: var(--base-color-text-primary);
 		}
 
+		.button {
+			display: inline-flex;
+			gap: 6px;
+			align-items: center;
+			padding: 5px 12px;
+			font: 600 12px/1.4 var(--font-family-body);
+			font-variant-numeric: tabular-nums;
+			color: var(--base-color-text-primary);
+			cursor: pointer;
+			background-color: var(--base-color-bg-tertiary);
+			border: 1px solid var(--base-color-border-light);
+			border-radius: 999px;
+			transition: background-color 0.15s ease, border-color 0.15s ease;
+		}
+
+		.button:disabled {
+			cursor: default;
+			opacity: 0.5;
+		}
+
+		@media (hover: hover) and (pointer: fine) {
+			.button:not(:disabled):hover {
+				background-color: rgba(var(--base-color-accent-rgb), 0.12);
+				border-color: rgba(var(--base-color-accent-rgb), 0.5);
+			}
+		}
+
+		.record::before {
+			width: 8px;
+			height: 8px;
+			content: "";
+			background-color: var(--base-color-danger);
+			border-radius: 50%;
+		}
+
+		.record.is-recording {
+			color: var(--base-color-danger);
+			border-color: rgba(var(--base-color-danger-rgb), 0.5);
+		}
+
+		.record.is-recording::before {
+			border-radius: 2px;
+			animation: pulse 1.6s ease-in-out infinite;
+		}
+
+		.saved {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 12px;
+			align-items: center;
+			margin-bottom: 12px;
+			padding: 8px 14px;
+			color: var(--base-color-text-primary);
+			background-color: rgba(var(--base-color-success-rgb), 0.08);
+			border: 1px solid rgba(var(--base-color-success-rgb), 0.3);
+			border-radius: var(--border-radius-8px);
+		}
+
+		.saved-path {
+			flex: 1;
+			min-width: 0;
+			overflow: hidden;
+			color: var(--base-color-text-secondary);
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
 		.waiting {
 			display: grid;
 			min-height: calc(100vh - 100px);
@@ -398,7 +465,7 @@
 			}
 		}
 
-		@media (max-width: 900px) {
+		@media (max-width: 760px) {
 			.panel-body {
 				flex-direction: column;
 			}
@@ -413,13 +480,19 @@
 	<header class="topbar">
 		<div class="brand">dev<span>deck</span></div>
 		<span id="live" class="live is-stale">Live</span>
+		<button id="record" class="button record" type="button">Record</button>
 		<div class="chips">
 			<span class="chip">Memory<b id="chip-memory">—</b></span>
 			<span class="chip">CPU<b id="chip-cpu">—</b></span>
 			<span class="chip">Processes<b id="chip-processes">—</b></span>
-			<span class="chip">Recording<b id="chip-uptime">—</b></span>
+			<span class="chip">Uptime<b id="chip-uptime">—</b></span>
 		</div>
 	</header>
+	<div id="saved" class="saved" hidden>
+		<span id="saved-text"></span>
+		<span id="saved-path" class="saved-path"></span>
+		<button id="saved-reveal" class="button" type="button">Show in folder</button>
+	</div>
 	<div id="waiting" class="waiting"><span class="live">Waiting for the first sample</span></div>
 	<div id="deck" hidden></div>
 	<div id="tooltip" class="tooltip" hidden></div>
@@ -913,6 +986,60 @@
 
 			setTimeout(poll, 1000);
 		}
+
+		const recordButton = document.getElementById("record");
+		const saved = document.getElementById("saved");
+		let recordingStarted = null;
+		let recordingTimer;
+
+		const showRecording = status => {
+			recordingStarted = status.isRecording ? status.started : null;
+			recordButton.classList.toggle("is-recording", status.isRecording);
+			clearInterval(recordingTimer);
+			if (!status.isRecording) {
+				recordButton.textContent = "Record";
+				return;
+			}
+
+			const tick = () => recordButton.textContent = `Stop · ${duration(Date.now() - recordingStarted)}`;
+			tick();
+			recordingTimer = setInterval(tick, 500);
+		}
+
+		const post = async (path, body) => {
+			const response = await fetch(path, { method: "POST", body });
+			if (!response.ok) throw new Error(await response.text());
+			return response.json();
+		}
+
+		recordButton.addEventListener("click", async () => {
+			recordButton.disabled = true;
+			try {
+				if (recordingStarted === null) {
+					saved.hidden = true;
+					showRecording(await post("recording/start"));
+				} else {
+					const result = await post("recording/stop");
+					showRecording({ isRecording: false });
+					document.getElementById("saved-text").textContent = `Saved ${duration(result.duration)} · ${result.samples} samples`;
+					document.getElementById("saved-path").textContent = result.path;
+					document.getElementById("saved-path").title = result.path;
+					saved.hidden = false;
+				}
+			} catch (error) {
+				console.error("[devdeck]", error);
+			}
+			recordButton.disabled = false;
+		});
+
+		document.getElementById("saved-reveal").addEventListener("click", () => {
+			void post("recording/reveal", document.getElementById("saved-path").textContent).catch(error => console.error("[devdeck]", error));
+		});
+
+		fetch("recording", { cache: "no-store" })
+			.then(response => response.json())
+			.then(showRecording)
+			.catch(() => undefined);
 
 		poll();
 	</script>
