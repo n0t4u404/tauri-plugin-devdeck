@@ -115,6 +115,7 @@ pub fn start<R: Runtime>(app: AppHandle<R>) {
         }
 
         let mut last_live = 0;
+        let mut cpu_since_live: HashMap<u32, (f32, u32)> = HashMap::new();
         loop {
             let is_recording = RECORDING.lock().unwrap().is_some();
             tokio::time::sleep(if is_recording { RECORD_INTERVAL } else { SAMPLE_INTERVAL }).await;
@@ -135,6 +136,12 @@ pub fn start<R: Runtime>(app: AppHandle<R>) {
                 "memory": process.memory(),
                 "cpu": process.cpu_usage()
             })).collect();
+            for process in &processes {
+                let pid = process["pid"].as_u64().unwrap_or(0) as u32;
+                let (sum, count) = cpu_since_live.entry(pid).or_default();
+                *sum += process["cpu"].as_f64().unwrap_or(0.0) as f32;
+                *count += 1;
+            }
 
             let time = now();
             let sample = json!({
@@ -156,6 +163,17 @@ pub fn start<R: Runtime>(app: AppHandle<R>) {
                 continue;
             }
             last_live = time;
+
+            let mut sample = sample;
+            if let Some(processes) = sample["processes"].as_array_mut() {
+                for process in processes {
+                    let pid = process["pid"].as_u64().unwrap_or(0) as u32;
+                    if let Some((sum, count)) = cpu_since_live.get(&pid).filter(|(_, count)| *count > 0) {
+                        process["cpu"] = json!(sum / *count as f32);
+                    }
+                }
+            }
+            cpu_since_live.clear();
 
             if let Some(path) = &log {
                 append_log(path, &sample);
