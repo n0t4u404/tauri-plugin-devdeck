@@ -1,6 +1,6 @@
 {
 	"name": "tauri-plugin-devdeck",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"description": "JavaScript API of tauri-plugin-devdeck: page reports, resource counters and the hotkey.",
 	"license": "MIT",
 	"author": "n0t4u404",
