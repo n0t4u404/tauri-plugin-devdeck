@@ -20,3 +20,9 @@ export const duration = milliseconds => {
 	if (seconds < 3600) return `${Math.floor(seconds / 60)}:${pad(seconds % 60)}`;
 	return `${Math.floor(seconds / 3600)}:${pad(Math.floor(seconds / 60) % 60)}:${pad(seconds % 60)}`;
 }
+
+export const formatSpan = milliseconds => {
+	if (Math.abs(milliseconds) < 1000) return `${Math.round(milliseconds)} ms`;
+	if (Math.abs(milliseconds) < 60_000) return `${String(Math.round(milliseconds / 100) / 10)} s`;
+	return duration(milliseconds);
+}

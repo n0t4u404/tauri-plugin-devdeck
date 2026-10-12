@@ -1,4 +1,4 @@
-import { sizeCanvas, token } from "./chart.js";
+import { sizeCanvas, token } from "#/shared/chart.js";
 
 export class Stat {
 	constructor(label, format) {

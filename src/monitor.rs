@@ -16,6 +16,7 @@ const RECORD_INTERVAL: Duration = Duration::from_millis(250);
 const MAX_RECORD_SAMPLES: usize = 4 * 60 * 10;
 const HISTORY: usize = 300;
 const RECORDINGS_DIR: &str = "devdeck-recordings";
+const RECORDING_EXTENSION: &str = ".devdeck.json";
 const LOG_FILE: &str = "devdeck.jsonl";
 const MAX_LOG_BYTES: u64 = 4 * 1024 * 1024;
 
@@ -72,23 +73,62 @@ pub fn stop_recording<R: Runtime>(app: &AppHandle<R>) -> Result<Value, String> {
         "samples": recording.samples
     });
 
-    let dir = app.path().app_log_dir().map_err(|e| e.to_string())?.join(RECORDINGS_DIR);
+    let dir = recordings_dir(app)?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let path = dir.join(format!("{}.devdeck.json", file_stamp(recording.started)));
+    let path = dir.join(format!("{}{RECORDING_EXTENSION}", file_stamp(recording.started)));
     std::fs::write(&path, file.to_string()).map_err(|e| e.to_string())?;
 
     Ok(json!({
+        "name": path.file_name().map(|name| name.to_string_lossy().into_owned()),
         "path": path.to_string_lossy(),
         "duration": stopped - recording.started,
         "samples": samples
     }))
 }
 
-pub fn reveal(path: &str) -> Result<(), String> {
-    let path = PathBuf::from(path);
-    if !path.exists() {
-        return Err("file not found".to_string());
+fn recordings_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    Ok(app.path().app_log_dir().map_err(|e| e.to_string())?.join(RECORDINGS_DIR))
+}
+
+fn recording_path<R: Runtime>(app: &AppHandle<R>, name: &str) -> Result<PathBuf, String> {
+    let is_plain_name = !name.is_empty() && !name.contains(['/', '\\', ':']) && !name.starts_with('.');
+    if !is_plain_name || !name.ends_with(RECORDING_EXTENSION) {
+        return Err("bad recording name".to_string());
     }
+    let path = recordings_dir(app)?.join(name);
+    if !path.is_file() {
+        return Err("recording not found".to_string());
+    }
+    Ok(path)
+}
+
+pub fn recordings_list<R: Runtime>(app: &AppHandle<R>) -> Result<Value, String> {
+    let Ok(entries) = std::fs::read_dir(recordings_dir(app)?) else {
+        return Ok(json!([]));
+    };
+
+    let mut recordings: Vec<(u64, Value)> = entries
+        .flatten()
+        .filter_map(|entry| {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let metadata = entry.metadata().ok()?;
+            if !name.ends_with(RECORDING_EXTENSION) || !metadata.is_file() {
+                return None;
+            }
+            let modified = metadata.modified().ok()?.duration_since(UNIX_EPOCH).ok()?.as_millis() as u64;
+            Some((modified, json!({ "name": name, "size": metadata.len(), "modified": modified })))
+        })
+        .collect();
+    recordings.sort_by(|a, b| b.0.cmp(&a.0));
+    Ok(Value::Array(recordings.into_iter().map(|(_, recording)| recording).collect()))
+}
+
+pub fn read_recording<R: Runtime>(app: &AppHandle<R>, name: &str) -> Result<Vec<u8>, String> {
+    std::fs::read(recording_path(app, name)?).map_err(|e| e.to_string())
+}
+
+pub fn reveal<R: Runtime>(app: &AppHandle<R>, name: &str) -> Result<(), String> {
+    let path = recording_path(app, name)?;
 
     #[cfg(windows)]
     let result = std::process::Command::new("explorer").arg(format!("/select,{}", path.display())).spawn();

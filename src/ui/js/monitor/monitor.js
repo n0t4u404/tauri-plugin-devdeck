@@ -1,19 +1,8 @@
-import { duration, formatMegabytes, formatNumber, formatPercent, megabytes, signed } from "./format.js";
-import { colorOf, minuteChange, statsOf } from "./chart.js";
+import { duration, formatMegabytes, formatNumber, formatPercent, megabytes, signed } from "#/shared/format.js";
+import { colorOf, minuteChange, statsOf } from "#/shared/chart.js";
 import { Panel } from "./panel.js";
+import { processName } from "#/shared/processes.js";
 import { Stat } from "./stat.js";
-
-const KIND_NAMES = {
-	"app": "App (Rust)",
-	"webview:browser": "WebView2 — browser",
-	"webview:renderer": "WebView2 — page",
-	"webview:gpu": "WebView2 — GPU",
-	"webview:network": "WebView2 — network",
-	"webview:storage": "WebView2 — storage",
-	"webview:audio": "WebView2 — audio",
-	"webview:utility": "WebView2 — utility",
-	"webview:crashpad-handler": "WebView2 — crashpad"
-}
 
 const columns = format => [
 	{ key: "min", label: "min", format },
@@ -77,7 +66,7 @@ const processSeries = (samples, read) => samples.at(-1).processes.map(process =>
 	});
 	return {
 		key,
-		name: `${KIND_NAMES[process.kind] ?? process.kind} · ${process.pid}`,
+		name: processName(process),
 		color: colorOf(key),
 		values,
 		stats: statsOf(values)

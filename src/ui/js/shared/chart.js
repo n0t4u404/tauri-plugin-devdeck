@@ -47,3 +47,11 @@ export const statsOf = (values, extra = {}) => {
 }
 
 export const minuteChange = values => (values.at(-1) ?? 0) - (values.at(-1 - MINUTE) ?? values[0] ?? 0);
+
+export const fitPeak = values => {
+	const sorted = values.filter(value => value > 0).sort((a, b) => a - b);
+	if (sorted.length === 0) return 1e-9;
+	const max = sorted.at(-1);
+	const usual = sorted[Math.floor((sorted.length - 1) * 0.98)];
+	return usual > 0 && max > usual * 1.5 ? usual * 1.2 : max;
+}

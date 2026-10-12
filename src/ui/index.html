@@ -5,10 +5,15 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title>devdeck</title>
 	<link rel="stylesheet" href="style.css" />
+	<script type="importmap">{ "imports": { "#/": "/js/" } }</script>
 </head>
 <body>
 	<header class="topbar">
 		<div class="brand">dev<span>deck</span></div>
+		<nav class="tabs">
+			<button class="tab is-active" data-view="monitor" type="button">Monitor</button>
+			<button class="tab" data-view="recording" type="button">Recording</button>
+		</nav>
 		<span id="live" class="live is-stale">Live</span>
 		<button id="record" class="button record" type="button">Record</button>
 		<div class="chips">
@@ -18,15 +23,25 @@
 			<span class="chip">Uptime<b id="chip-uptime">—</b></span>
 		</div>
 	</header>
-	<div id="saved" class="saved" hidden>
-		<span id="saved-text"></span>
-		<span id="saved-path" class="saved-path"></span>
-		<button id="saved-reveal" class="button" type="button">Show in folder</button>
-	</div>
-	<div id="waiting" class="waiting"><span class="live">Waiting for the first sample</span></div>
-	<div id="deck" hidden></div>
+	<main id="monitor-view">
+		<div id="waiting" class="waiting"><span class="live">Waiting for the first sample</span></div>
+		<div id="deck" hidden></div>
+	</main>
+	<main id="recording-view" hidden>
+		<div class="timeline-toolbar">
+			<select id="recording-select" class="select"></select>
+			<button id="recording-reveal" class="button" type="button">Show in folder</button>
+			<span id="recording-info" class="timeline-info"></span>
+			<span class="timeline-hint">Wheel to zoom · drag to pan · double-click to reset</span>
+		</div>
+		<p id="recording-empty" class="timeline-empty" hidden>No recordings yet. Press <b>Record</b>, do what you want to measure, then <b>Stop</b>.</p>
+		<div id="recording-body" hidden>
+			<div class="timeline-panel"><canvas id="timeline-overview" class="timeline-overview"></canvas></div>
+			<div class="timeline-panel"><canvas id="timeline-tracks" class="timeline-tracks"></canvas></div>
+			<div id="timeline-summary" class="timeline-summary"></div>
+		</div>
+	</main>
 	<div id="tooltip" class="tooltip" hidden></div>
-
 	<script type="module" src="js/main.js"></script>
 </body>
 </html>

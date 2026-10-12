@@ -1,7 +1,8 @@
-import { duration } from "./format.js";
+import { post } from "#/shared/api.js";
+import { duration } from "#/shared/format.js";
+import { openRecording } from "./timeline.js";
 
 const recordButton = document.getElementById("record");
-const saved = document.getElementById("saved");
 let recordingStarted = null;
 let recordingTimer;
 
@@ -19,34 +20,20 @@ const showRecording = status => {
 	recordingTimer = setInterval(tick, 500);
 }
 
-const post = async (path, body) => {
-	const response = await fetch(path, { method: "POST", body });
-	if (!response.ok) throw new Error(await response.text());
-	return response.json();
-}
-
 recordButton.addEventListener("click", async () => {
 	recordButton.disabled = true;
 	try {
 		if (recordingStarted === null) {
-			saved.hidden = true;
 			showRecording(await post("recording/start"));
 		} else {
 			const result = await post("recording/stop");
 			showRecording({ isRecording: false });
-			document.getElementById("saved-text").textContent = `Saved ${duration(result.duration)} · ${result.samples} samples`;
-			document.getElementById("saved-path").textContent = result.path;
-			document.getElementById("saved-path").title = result.path;
-			saved.hidden = false;
+			openRecording(result.name);
 		}
 	} catch (error) {
 		console.error("[devdeck]", error);
 	}
 	recordButton.disabled = false;
-});
-
-document.getElementById("saved-reveal").addEventListener("click", () => {
-	void post("recording/reveal", document.getElementById("saved-path").textContent).catch(error => console.error("[devdeck]", error));
 });
 
 export const startRecording = () => fetch("recording", { cache: "no-store" })

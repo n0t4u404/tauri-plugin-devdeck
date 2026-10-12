@@ -1,15 +1,7 @@
-import { clock } from "./format.js";
-import { niceStep, sizeCanvas, token } from "./chart.js";
+import { clock } from "#/shared/format.js";
+import { fitPeak, niceStep, sizeCanvas, token } from "#/shared/chart.js";
 
 const tooltip = document.getElementById("tooltip");
-
-const fitPeak = values => {
-	const sorted = values.filter(value => value > 0).sort((a, b) => a - b);
-	if (sorted.length === 0) return 1e-9;
-	const max = sorted.at(-1);
-	const usual = sorted[Math.floor((sorted.length - 1) * 0.98)];
-	return usual > 0 && max > usual * 1.5 ? usual * 1.2 : max;
-}
 
 export class Panel {
 	constructor({ title, subtitle, unit, columns, note, kind = "bars" }) {
@@ -217,6 +209,7 @@ export class Panel {
 			context.fillStyle = token("--base-color-text-primary");
 			context.fillText(label, labelX, 12);
 		});
+		
 		if (this.hoverIndex !== null && this.hoverIndex < count) {
 			context.strokeStyle = token("--base-color-text-muted");
 			context.setLineDash([3, 3]);
