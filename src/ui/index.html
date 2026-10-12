@@ -35,11 +35,11 @@
 			--base-color-text-secondary: #8B95A7;
 			--base-color-text-muted: #5B6474;
 
-			--base-color-accent: #4C8DFF;
-			--base-color-accent-rgb: 76, 141, 255;
-			--base-color-accent-light: #6FA4FF;
-			--base-color-accent-lighter: #9DC1FF;
-			--base-color-accent-dark: #2F6BD9;
+			--base-color-accent: #FF7A1A;
+			--base-color-accent-rgb: 255, 122, 26;
+			--base-color-accent-light: #FF9A4D;
+			--base-color-accent-lighter: #FFBF8A;
+			--base-color-accent-dark: #D95F00;
 
 			--base-color-danger: #F2495C;
 			--base-color-danger-rgb: 242, 73, 92;
@@ -63,36 +63,774 @@
 			padding: 0;
 		}
 
+		[hidden] {
+			display: none !important;
+		}
+
 		body {
-			display: grid;
 			min-height: 100vh;
-			font: 400 13px/1.4 var(--font-family-body);
+			padding: 12px;
+			font: 400 12px/1.4 var(--font-family-body);
+			font-variant-numeric: tabular-nums;
 			color: var(--base-color-text-secondary);
 			background-color: var(--base-color-bg-primary);
+		}
+
+		.panel {
+			margin-bottom: 12px;
+			padding: 8px 12px 12px;
+			background-color: var(--base-color-bg-secondary);
+			border: 1px solid var(--base-color-border-faint);
+			border-radius: var(--border-radius-8px);
+		}
+
+		.topbar {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 16px;
+			align-items: center;
+			margin-bottom: 12px;
+			padding: 10px 14px;
+			background-color: var(--base-color-bg-secondary);
+			border: 1px solid var(--base-color-border-faint);
+			border-radius: var(--border-radius-8px);
+		}
+
+		.brand {
+			font-size: 15px;
+			font-weight: 700;
+			color: var(--base-color-text-primary);
+			letter-spacing: -0.01em;
+		}
+
+		.brand span {
+			color: var(--base-color-accent);
+		}
+
+		.live {
+			display: inline-flex;
+			gap: 6px;
+			align-items: center;
+			font-size: 11px;
+			font-weight: 600;
+			color: var(--base-color-success);
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+		}
+
+		.live::before {
+			width: 8px;
+			height: 8px;
+			content: "";
+			background-color: currentColor;
+			border-radius: 50%;
+			animation: pulse 1.6s ease-in-out infinite;
+		}
+
+		.live.is-stale {
+			color: var(--base-color-text-muted);
+		}
+
+		.live.is-stale::before {
+			animation: none;
+		}
+
+		.chips {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			margin-left: auto;
+		}
+
+		.chip {
+			padding: 4px 10px;
+			color: var(--base-color-text-secondary);
+			background-color: var(--base-color-bg-tertiary);
+			border-radius: 999px;
+		}
+
+		.chip b {
+			margin-left: 4px;
+			font-weight: 600;
+			color: var(--base-color-text-primary);
+		}
+
+		.waiting {
+			display: grid;
+			min-height: calc(100vh - 100px);
 			place-items: center;
+		}
+
+		.waiting .live {
+			color: var(--base-color-accent);
+		}
+
+		.panel-head {
+			display: flex;
+			gap: 12px;
+			align-items: baseline;
+			justify-content: space-between;
+			margin-bottom: 8px;
+		}
+
+		.panel-title {
+			font-size: 13px;
+			font-weight: 600;
+			color: var(--base-color-text-primary);
+		}
+
+		.panel-subtitle {
+			font-size: 11px;
+			color: var(--base-color-text-muted);
+		}
+
+		.panel-body {
+			display: flex;
+			gap: 16px;
+			align-items: stretch;
+		}
+
+		.chart {
+			flex: 1;
+			min-width: 0;
+			height: 220px;
+		}
+
+		.chart canvas {
+			display: block;
+			width: 100%;
+			height: 100%;
+		}
+
+		.legend {
+			flex: 0 0 auto;
+			width: 440px;
+			max-height: 220px;
+			overflow: auto;
+		}
+
+		.legend::-webkit-scrollbar {
+			width: 8px;
+			height: 8px;
+		}
+
+		.legend::-webkit-scrollbar-track {
+			background: transparent;
+		}
+
+		.legend::-webkit-scrollbar-thumb {
+			background-color: var(--base-color-border-light);
+			border-radius: 999px;
+		}
+
+		.legend table {
+			width: 100%;
+			border-collapse: collapse;
+		}
+
+		.legend th {
+			position: sticky;
+			top: 0;
+			padding: 4px 8px;
+			font-weight: 500;
+			color: var(--base-color-accent);
+			text-align: right;
+			white-space: nowrap;
+			cursor: pointer;
+			user-select: none;
+			background-color: var(--base-color-bg-secondary);
+		}
+
+		.legend th:first-child {
+			text-align: left;
+			cursor: default;
+		}
+
+		.legend td {
+			padding: 3px 8px;
+			color: var(--base-color-text-primary);
+			text-align: right;
+			white-space: nowrap;
+		}
+
+		.legend td:first-child {
+			max-width: 220px;
+			overflow: hidden;
+			text-align: left;
+			text-overflow: ellipsis;
+		}
+
+		.legend tbody tr {
+			cursor: pointer;
+			transition: background-color var(--ease-out-02s);
+		}
+
+		.legend tbody tr:hover {
+			background-color: var(--base-color-bg-tertiary);
+		}
+
+		.legend tr.hidden td {
+			opacity: 0.35;
+		}
+
+		.swatch {
+			display: inline-block;
+			width: 14px;
+			height: 4px;
+			margin: 0 8px 2px 0;
+			vertical-align: middle;
+			border-radius: 2px;
+		}
+
+		.stats {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+			gap: 12px;
+			margin-bottom: 12px;
+		}
+
+		.stat {
+			position: relative;
+			height: 110px;
+			padding: 8px 12px;
+			overflow: hidden;
+			background-color: var(--base-color-bg-secondary);
+			border: 1px solid var(--base-color-border-faint);
+			border-radius: var(--border-radius-8px);
+		}
+
+		.stat-label {
+			display: flex;
+			gap: 8px;
+			align-items: center;
+			justify-content: space-between;
+			font-size: 11px;
+			font-weight: 500;
+			color: var(--base-color-text-muted);
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+		}
+
+		.delta {
+			padding: 1px 6px;
+			font-size: 11px;
+			font-weight: 600;
+			text-transform: none;
+			letter-spacing: 0;
+			border-radius: 999px;
+		}
+
+		.delta.is-up {
+			color: var(--base-color-danger);
+			background-color: rgba(var(--base-color-danger-rgb), 0.12);
+		}
+
+		.delta.is-down {
+			color: var(--base-color-success);
+			background-color: rgba(var(--base-color-success-rgb), 0.12);
+		}
+
+		.stat-value {
+			position: relative;
+			z-index: 1;
+			font-size: 28px;
+			font-weight: 500;
+			color: var(--base-color-text-primary);
+		}
+
+		.stat canvas {
+			position: absolute;
+			right: 0;
+			bottom: 0;
+			left: 0;
+			width: 100%;
+			height: 60px;
+		}
+
+		.tooltip {
+			position: fixed;
+			z-index: 10;
+			min-width: 180px;
+			padding: 6px 8px;
+			pointer-events: none;
+			background-color: rgba(var(--base-color-bg-tertiary-rgb), 0.96);
+			border: 1px solid var(--base-color-border-light);
+			border-radius: var(--border-radius-4px);
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+		}
+
+		.tooltip-time {
+			margin-bottom: 4px;
+			color: var(--base-color-text-muted);
+		}
+
+		.tooltip-row {
+			display: flex;
+			gap: 12px;
+			justify-content: space-between;
+			color: var(--base-color-text-primary);
+		}
+
+		.note {
+			margin-top: 6px;
+			font-size: 11px;
+			color: var(--base-color-text-muted);
+		}
+
+		@keyframes pulse {
+			0%,
+			100% {
+				opacity: 1;
+			}
+
+			50% {
+				opacity: 0.35;
+			}
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			.live::before {
+				animation: none;
+			}
+		}
+
+		@media (max-width: 900px) {
+			.panel-body {
+				flex-direction: column;
+			}
+
+			.legend {
+				width: 100%;
+			}
 		}
 	</style>
 </head>
 <body>
-	<p id="status">Waiting for the first sample…</p>
+	<header class="topbar">
+		<div class="brand">dev<span>deck</span></div>
+		<span id="live" class="live is-stale">Live</span>
+		<div class="chips">
+			<span class="chip">Memory<b id="chip-memory">—</b></span>
+			<span class="chip">CPU<b id="chip-cpu">—</b></span>
+			<span class="chip">Processes<b id="chip-processes">—</b></span>
+			<span class="chip">Recording<b id="chip-uptime">—</b></span>
+		</div>
+	</header>
+	<div id="waiting" class="waiting"><span class="live">Waiting for the first sample</span></div>
+	<div id="deck" hidden></div>
+	<div id="tooltip" class="tooltip" hidden></div>
 
 	<script>
-		const status = document.getElementById("status");
-		const megabytes = bytes => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+		const PALETTE = [
+			"#73bf69", "#f2cc0c", "#8ab8ff", "#ff780a", "#f2495c", "#5794f2", "#b877d9", "#6ed0e0",
+			"#fade2a", "#37872d", "#e0b400", "#c4162a", "#1f60c4", "#8f3bb8", "#ff9830", "#447ebc"
+		];
+		const KIND_NAMES = {
+			"app": "App (Rust)",
+			"webview:browser": "WebView2 — browser",
+			"webview:renderer": "WebView2 — page",
+			"webview:gpu": "WebView2 — GPU",
+			"webview:network": "WebView2 — network",
+			"webview:storage": "WebView2 — storage",
+			"webview:audio": "WebView2 — audio",
+			"webview:utility": "WebView2 — utility",
+			"webview:crashpad-handler": "WebView2 — crashpad"
+		};
+
+		const tooltip = document.getElementById("tooltip");
+		const colors = new Map();
+		const colorOf = key => {
+			if (!colors.has(key)) colors.set(key, PALETTE[colors.size % PALETTE.length]);
+			return colors.get(key);
+		}
+		const token = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+		const clock = time => new Date(time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+		const formatNumber = value => {
+			const abs = Math.abs(value);
+			if (abs >= 1e6) return `${(value / 1e6).toFixed(1)} M`;
+			if (abs >= 1e4) return `${(value / 1e3).toFixed(1)} K`;
+			if (Number.isInteger(value)) return String(value);
+			return value.toFixed(abs >= 100 ? 0 : 2);
+		}
+		const formatMegabytes = value => value >= 1024 ? `${(value / 1024).toFixed(2)} GB` : `${value.toFixed(1)} MB`;
+		const formatPercent = value => `${value.toFixed(1)}%`;
+
+		const niceStep = (range, count) => {
+			const raw = range / count;
+			const power = 10 ** Math.floor(Math.log10(raw || 1));
+			return [1, 2, 2.5, 5, 10].map(multiple => multiple * power).find(candidate => candidate >= raw) ?? power * 10;
+		}
+
+		const sizeCanvas = canvas => {
+			const ratio = window.devicePixelRatio || 1;
+			const width = canvas.clientWidth;
+			const height = canvas.clientHeight;
+			if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) {
+				canvas.width = Math.round(width * ratio);
+				canvas.height = Math.round(height * ratio);
+			}
+
+			const context = canvas.getContext("2d");
+			context.setTransform(ratio, 0, 0, ratio, 0, 0);
+			context.clearRect(0, 0, width, height);
+			return { context, width, height }
+		}
+
+		const statsOf = values => {
+			const present = values.filter(value => value !== null && value !== undefined);
+			const sum = present.reduce((total, value) => total + value, 0);
+			return {
+				min: present.length ? Math.min(...present) : 0,
+				max: present.length ? Math.max(...present) : 0,
+				avg: present.length ? sum / present.length : 0,
+				current: present.at(-1) ?? 0
+			}
+		}
+
+		class Panel {
+			constructor({ title, subtitle, unit, columns, note }) {
+				this.unit = unit;
+				this.columns = columns;
+				this.sort = { column: columns.find(column => column.isDefaultSort)?.key ?? columns[0].key, isDescending: true };
+				this.hidden = new Set();
+				this.hoverIndex = null;
+				this.highlight = null;
+				this.data = null;
+
+				this.element = document.createElement("section");
+				this.element.className = "panel";
+				this.element.innerHTML = `<div class="panel-head"><div class="panel-title"></div><div class="panel-subtitle"></div></div><div class="panel-body"><div class="chart"><canvas></canvas></div><div class="legend"><table><thead><tr><th></th></tr></thead><tbody></tbody></table></div></div>`;
+				this.element.querySelector(".panel-title").textContent = title;
+				this.element.querySelector(".panel-subtitle").textContent = subtitle ?? "";
+
+				if (note) {
+					const paragraph = document.createElement("p");
+					paragraph.className = "note";
+					paragraph.textContent = note;
+					this.element.append(paragraph);
+				}
+
+				this.canvas = this.element.querySelector("canvas");
+				this.body = this.element.querySelector("tbody");
+
+				const headRow = this.element.querySelector("thead tr");
+				for (const column of columns) {
+					const header = document.createElement("th");
+					header.dataset.key = column.key;
+					header.addEventListener("click", () => {
+						this.sort = { column: column.key, isDescending: this.sort.column === column.key ? !this.sort.isDescending : true }
+						this.render();
+					});
+					headRow.append(header);
+				}
+
+				this.canvas.addEventListener("mousemove", event => this.hover(event));
+				this.canvas.addEventListener("mouseleave", () => {
+					this.hoverIndex = null;
+					tooltip.hidden = true;
+					this.draw();
+				});
+				new ResizeObserver(() => this.draw()).observe(this.canvas);
+			}
+
+			update(data) {
+				this.data = data;
+				this.render();
+			}
+
+			render() {
+				if (!this.data) return;
+				for (const header of this.element.querySelectorAll("th[data-key]")) {
+					const column = this.columns.find(item => item.key === header.dataset.key);
+					header.textContent = column.label + (this.sort.column === column.key ? (this.sort.isDescending ? " ▾" : " ▴") : "");
+				}
+
+				const rows = [...this.data.series].sort((a, b) => {
+					const difference = (a.stats[this.sort.column] ?? 0) - (b.stats[this.sort.column] ?? 0);
+					return this.sort.isDescending ? -difference : difference;
+				});
+
+				this.body.replaceChildren(...rows.map(series => {
+					const row = document.createElement("tr");
+					if (this.hidden.has(series.key)) row.className = "hidden";
+					const name = document.createElement("td");
+					const swatch = document.createElement("span");
+					swatch.className = "swatch";
+					swatch.style.background = series.color;
+					name.append(swatch, series.name);
+					name.title = series.name;
+					row.append(name);
+					for (const column of this.columns) {
+						const cell = document.createElement("td");
+						cell.textContent = column.format(series.stats[column.key] ?? 0);
+						row.append(cell);
+					}
+					row.addEventListener("mouseenter", () => {
+						this.highlight = series.key;
+						this.draw();
+					});
+					row.addEventListener("mouseleave", () => {
+						this.highlight = null;
+						this.draw();
+					});
+					row.addEventListener("click", () => {
+						if (this.hidden.has(series.key)) this.hidden.delete(series.key);
+						else this.hidden.add(series.key);
+						this.render();
+					});
+					return row;
+				}));
+				this.draw();
+			}
+
+			visibleSeries() {
+				return this.data ? this.data.series.filter(series => !this.hidden.has(series.key)) : [];
+			}
+
+			draw() {
+				const { context, width, height } = sizeCanvas(this.canvas);
+				if (!this.data || this.data.times.length === 0) return;
+				const series = this.visibleSeries();
+				const count = this.data.times.length;
+				const totals = Array.from({ length: count }, (_, index) => series.reduce((sum, item) => sum + (item.values[index] ?? 0), 0));
+				const peak = Math.max(1e-9, ...totals);
+				const step = niceStep(peak, 4);
+				const top = Math.ceil(peak / step) * step;
+
+				context.font = `11px ${token("--font-family-body")}`;
+				const labels = [];
+				for (let value = 0; value <= top + step / 2; value += step) labels.push(value);
+				const left = Math.max(...labels.map(value => context.measureText(this.unit(value)).width)) + 10;
+				const bottom = height - 18;
+				const plotWidth = width - left - 4;
+				const plotHeight = bottom - 6;
+				const y = value => bottom - value / top * plotHeight;
+				const slot = plotWidth / count;
+				const x = index => left + slot * index + slot / 2;
+				this.geometry = { left, slot, count };
+
+				context.strokeStyle = token("--base-color-border-light");
+				context.fillStyle = token("--base-color-text-muted");
+				context.lineWidth = 1;
+				context.textBaseline = "middle";
+				context.textAlign = "right";
+				for (const value of labels) {
+					const lineY = Math.round(y(value)) + 0.5;
+					context.beginPath();
+					context.moveTo(left, lineY);
+					context.lineTo(width - 4, lineY);
+					context.stroke();
+					context.fillText(this.unit(value), left - 6, lineY);
+				}
+				context.textAlign = "center";
+				context.textBaseline = "alphabetic";
+				const timeEvery = Math.max(1, Math.round(count / Math.max(2, Math.floor(plotWidth / 90))));
+				for (let index = 0; index < count; index += timeEvery) {
+					const lineX = Math.round(x(index)) + 0.5;
+					context.beginPath();
+					context.moveTo(lineX, 6);
+					context.lineTo(lineX, bottom);
+					context.stroke();
+					context.fillText(clock(this.data.times[index]), lineX, height - 4);
+				}
+
+				const barWidth = Math.max(1, slot * 0.8);
+				const base = new Array(count).fill(0);
+				for (const item of series) {
+					context.globalAlpha = this.highlight && this.highlight !== item.key ? 0.25 : 1;
+					context.fillStyle = item.color;
+					for (let index = 0; index < count; index++) {
+						const value = item.values[index] ?? 0;
+						if (value <= 0) continue;
+						const from = y(base[index]);
+						const to = y(base[index] + value);
+						context.fillRect(x(index) - barWidth / 2, to, barWidth, Math.max(1, from - to));
+						base[index] += value;
+					}
+				}
+
+				context.globalAlpha = 1;
+				if (this.hoverIndex !== null && this.hoverIndex < count) {
+					context.strokeStyle = token("--base-color-text-muted");
+					context.setLineDash([3, 3]);
+					context.beginPath();
+					context.moveTo(Math.round(x(this.hoverIndex)) + 0.5, 6);
+					context.lineTo(Math.round(x(this.hoverIndex)) + 0.5, bottom);
+					context.stroke();
+					context.setLineDash([]);
+				}
+			}
+
+			hover(event) {
+				if (!this.data || !this.geometry) return;
+				const rect = this.canvas.getBoundingClientRect();
+				const index = Math.floor((event.clientX - rect.left - this.geometry.left) / this.geometry.slot);
+				if (index < 0 || index >= this.geometry.count) {
+					this.hoverIndex = null;
+					tooltip.hidden = true;
+					this.draw();
+					return;
+				}
+
+				this.hoverIndex = index;
+				this.draw();
+
+				const rows = this.visibleSeries()
+					.map(series => ({ series, value: series.values[index] ?? 0 }))
+					.filter(item => item.value !== 0)
+					.sort((a, b) => b.value - a.value)
+					.slice(0, 12);
+				const time = document.createElement("div");
+				time.className = "tooltip-time";
+				time.textContent = clock(this.data.times[index]);
+				tooltip.replaceChildren(time, ...rows.map(({ series, value }) => {
+					const line = document.createElement("div");
+					line.className = "tooltip-row";
+					const name = document.createElement("span");
+					const swatch = document.createElement("span");
+					swatch.className = "swatch";
+					swatch.style.background = series.color;
+					name.append(swatch, series.name);
+					const amount = document.createElement("span");
+					amount.textContent = this.unit(value);
+					line.append(name, amount);
+					return line;
+				}));
+				tooltip.hidden = false;
+				tooltip.style.left = `${Math.min(event.clientX + 14, window.innerWidth - tooltip.offsetWidth - 8)}px`;
+				tooltip.style.top = `${Math.min(event.clientY + 14, window.innerHeight - tooltip.offsetHeight - 8)}px`;
+			}
+		}
+
+		class Stat {
+			constructor(label, format) {
+				this.format = format;
+				this.element = document.createElement("div");
+				this.element.className = "stat";
+				this.element.innerHTML = `<div class="stat-label"><span></span><span class="delta" hidden></span></div><div class="stat-value"></div><canvas></canvas>`;
+				this.element.querySelector(".stat-label span").textContent = label;
+				this.delta = this.element.querySelector(".delta");
+				this.value = this.element.querySelector(".stat-value");
+				this.canvas = this.element.querySelector("canvas");
+				this.values = [];
+				new ResizeObserver(() => this.draw()).observe(this.canvas);
+			}
+
+			update(values) {
+				this.values = values;
+				this.value.textContent = values.length ? this.format(values.at(-1)) : "—";
+				const change = (values.at(-1) ?? 0) - (values.at(-61) ?? values[0] ?? 0);
+				this.delta.hidden = change === 0;
+				this.delta.textContent = `${change > 0 ? "+" : "−"}${this.format(Math.abs(change))} / 1 min`;
+				this.delta.className = `delta ${change > 0 ? "is-up" : "is-down"}`;
+				this.draw();
+			}
+
+			draw() {
+				const { context, width, height } = sizeCanvas(this.canvas);
+				if (this.values.length < 2) return;
+				const min = Math.min(...this.values);
+				const range = Math.max(...this.values) - min || 1;
+				const accent = token("--base-color-accent-rgb");
+				const points = this.values.map((value, index) => [index / (this.values.length - 1) * width, height - 4 - (value - min) / range * (height - 8)]);
+				const gradient = context.createLinearGradient(0, 0, 0, height);
+				gradient.addColorStop(0, `rgba(${accent}, 0.35)`);
+				gradient.addColorStop(1, `rgba(${accent}, 0)`);
+				context.beginPath();
+				context.moveTo(0, height);
+				for (const [pointX, pointY] of points) context.lineTo(pointX, pointY);
+				context.lineTo(width, height);
+				context.closePath();
+				context.fillStyle = gradient;
+				context.fill();
+				context.beginPath();
+				points.forEach(([pointX, pointY], index) => index === 0 ? context.moveTo(pointX, pointY) : context.lineTo(pointX, pointY));
+				context.strokeStyle = token("--base-color-accent");
+				context.lineWidth = 1.5;
+				context.stroke();
+			}
+		}
+
+		const megabytes = bytes => bytes / 1024 / 1024;
+		const columns = format => [
+			{ key: "min", label: "min", format },
+			{ key: "max", label: "max", format },
+			{ key: "avg", label: "avg", format },
+			{ key: "current", label: "current", format, isDefaultSort: true }
+		];
+
+		const panels = {
+			memory: new Panel({ title: "Memory", subtitle: "MB · last 5 min", unit: formatMegabytes, columns: columns(formatMegabytes) }),
+			cpu: new Panel({
+				title: "CPU",
+				subtitle: "% of one core · last 5 min",
+				unit: formatPercent,
+				columns: columns(formatPercent),
+				note: "100% is one fully busy core. WebView2 processes are shared by all windows of the app — this window is one of the pages."
+			})
+		}
+		const tasks = new Stat("Tokio tasks (Rust)", formatNumber);
+
+		const deck = document.getElementById("deck");
+		const statsRow = document.createElement("div");
+		statsRow.className = "stats";
+		statsRow.append(tasks.element);
+		deck.append(panels.memory.element, panels.cpu.element, statsRow);
+
+		const processSeries = (samples, read) => samples.at(-1).processes.map(process => {
+			const key = `${process.kind}:${process.pid}`;
+			const values = samples.map(sample => {
+				const found = sample.processes.find(item => item.pid === process.pid);
+				return found ? read(found) : null;
+			});
+			return {
+				key,
+				name: `${KIND_NAMES[process.kind] ?? process.kind} · ${process.pid}`,
+				color: colorOf(key),
+				values,
+				stats: statsOf(values)
+			}
+		});
+
+		const live = document.getElementById("live");
+		let lastTime = 0;
+		let staleTimer;
+		const duration = milliseconds => {
+			const seconds = Math.floor(milliseconds / 1000);
+			return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+		}
+
+		const render = samples => {
+			if (samples.length === 0) return;
+			document.getElementById("waiting").hidden = true;
+			deck.hidden = false;
+			const latest = samples.at(-1);
+			if (latest.time !== lastTime) {
+				lastTime = latest.time;
+				live.classList.remove("is-stale");
+				clearTimeout(staleTimer);
+				staleTimer = setTimeout(() => live.classList.add("is-stale"), 3000);
+			}
+
+			document.getElementById("chip-memory").textContent = formatMegabytes(megabytes(latest.processes.reduce((sum, process) => sum + process.memory, 0)));
+			document.getElementById("chip-cpu").textContent = formatPercent(latest.processes.reduce((sum, process) => sum + process.cpu, 0));
+			document.getElementById("chip-processes").textContent = String(latest.processes.length);
+			document.getElementById("chip-uptime").textContent = duration(latest.time - samples[0].time);
+			const times = samples.map(sample => sample.time);
+			panels.memory.update({ times, series: processSeries(samples, process => megabytes(process.memory)) });
+			panels.cpu.update({ times, series: processSeries(samples, process => process.cpu) });
+			tasks.update(samples.map(sample => sample.rust.tasks));
+		}
 
 		const poll = async () => {
 			try {
 				const response = await fetch("samples", { cache: "no-store" });
-				const samples = response.ok ? await response.json() : [];
-				const latest = samples.at(-1);
-				
-				if (latest) {
-					const memory = latest.processes.reduce((sum, process) => sum + process.memory, 0);
-					status.textContent = `${samples.length} samples · ${latest.processes.length} processes · ${megabytes(memory)}`;
-				}
+				if (response.ok) render(await response.json());
 			} catch (error) {
 				console.error("[devdeck]", error);
 			}
+
 			setTimeout(poll, 1000);
 		}
 
