@@ -5,8 +5,7 @@ every process of your app uses, and which resources your page creates and never 
 
 Built to answer questions like *"why does the app take 6 GB after a night on this screen?"* without guessing.
 
-> Status: early. The **Monitor** is ready. Planned: **Recording** (a Performance-style timeline you can save and
-> compare), **Controls** (put the app into any state for previews) and **Capture** (screenshots and animated WebP of
+> Status: early. The **Monitor** and **Recording** are ready. Planned: **Controls** (put the app into any state for previews) and **Capture** (screenshots and animated WebP of
 > a window).
 
 ## What it shows
@@ -25,6 +24,16 @@ highlight it on the chart.
 
 Every sample is also appended to `devdeck.jsonl` in the app log folder (`app_log_dir`), so a long session can be
 analysed later. The file is cleared when the deck opens, and again once it passes 4 MB.
+
+## Recording
+
+Press **Record**, do what you want to measure, then **Stop**. Samples are taken every 250 ms (up to 10 minutes) and
+saved to `devdeck-recordings/` in the app log folder; the deck then opens the **Recording** tab with a
+Performance-style timeline: CPU and memory stacked per process, JS heap, elements, resources and calls.
+
+Zoom with the wheel, drag to pan, double-click to reset, or pick a range on the overview strip. The summary under the
+timeline counts only the selected range: average and max CPU per process, memory at its start and end, what grew,
+and how many calls happened. Older recordings stay in the list, so you can open one from before a fix and compare.
 
 ## Install
 
@@ -95,6 +104,9 @@ devTotal("bytes received", chunk.length);
 
 - `devGauge(name, delta)`: adds `delta` to a value that goes up and down. Shown as lines in **Resources**.
 - `devTotal(name, amount = 1)`: adds to a running total. Shown per second in **Calls and events**.
+- `devEvent(name, payload)`: counts an event like `devTotal(name)`, and also counts `<name> · same` when the payload is
+  the same as last time. If both lines grow at the same rate, the sender keeps sending data that didn't change.
+  Payloads are compared as JSON, so keep it for events with small payloads.
 
 Before `startDevdeck()` is called (and in release builds, where you don't call it) the counters do nothing, so they
 are safe to leave in your code.

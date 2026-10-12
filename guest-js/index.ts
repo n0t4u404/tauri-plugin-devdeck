@@ -21,6 +21,7 @@ type MemoryInfo = {
 
 const gauges = new Map<string, number>();
 const totals = new Map<string, number>();
+const lastPayloads = new Map<string, string>();
 let isStarted = false;
 
 export function devGauge(name: string, delta: number): void {
@@ -31,6 +32,22 @@ export function devGauge(name: string, delta: number): void {
 export function devTotal(name: string, amount = 1): void {
 	if (!isStarted) return;
 	totals.set(name, (totals.get(name) ?? 0) + amount);
+}
+
+const serialize = (payload: unknown): string => {
+	try {
+		return JSON.stringify(payload) ?? "undefined";
+	} catch {
+		return String(payload);
+	}
+}
+
+export function devEvent(name: string, payload?: unknown): void {
+	if (!isStarted) return;
+	devTotal(name);
+	const serialized = serialize(payload);
+	if (lastPayloads.get(name) === serialized) devTotal(`${name} · same`);
+	else lastPayloads.set(name, serialized);
 }
 
 const parseHotkey = (hotkey: string): Hotkey => {
@@ -83,6 +100,7 @@ export function startDevdeck(options: DevdeckOptions = {}): () => void {
 	return () => {
 		window.clearInterval(timer);
 		window.removeEventListener("keydown", onKeyDown);
+		lastPayloads.clear();
 		isStarted = false;
 	}
 }
