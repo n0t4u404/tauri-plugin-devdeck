@@ -7,6 +7,7 @@ pub fn respond(request: &Request<Vec<u8>>) -> Response<Vec<u8>> {
     let (status, content_type, body) = match request.uri().path() {
         "/" | "/index.html" => (StatusCode::OK, "text/html; charset=utf-8", INDEX.as_bytes().to_vec()),
         "/fonts/inter-latin.woff2" => (StatusCode::OK, "font/woff2", INTER.to_vec()),
+        "/samples" => (StatusCode::OK, "application/json", crate::monitor::samples_json()),
         _ => (StatusCode::NOT_FOUND, "text/plain", b"not found".to_vec())
     };
     Response::builder()

@@ -24,5 +24,6 @@ pub fn open<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
         .min_inner_size(560.0, 420.0)
         .build()
         .map_err(|e| e.to_string())?;
+    crate::monitor::start(app.clone());
     Ok(())
 }

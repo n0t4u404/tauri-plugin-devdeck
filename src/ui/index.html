@@ -74,6 +74,29 @@
 	</style>
 </head>
 <body>
-	<p>devdeck is running.</p>
+	<p id="status">Waiting for the first sample…</p>
+
+	<script>
+		const status = document.getElementById("status");
+		const megabytes = bytes => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
+		const poll = async () => {
+			try {
+				const response = await fetch("samples", { cache: "no-store" });
+				const samples = response.ok ? await response.json() : [];
+				const latest = samples.at(-1);
+				
+				if (latest) {
+					const memory = latest.processes.reduce((sum, process) => sum + process.memory, 0);
+					status.textContent = `${samples.length} samples · ${latest.processes.length} processes · ${megabytes(memory)}`;
+				}
+			} catch (error) {
+				console.error("[devdeck]", error);
+			}
+			setTimeout(poll, 1000);
+		}
+
+		poll();
+	</script>
 </body>
 </html>
