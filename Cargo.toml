@@ -1,0 +1,19 @@
+[package]
+name = "tauri-plugin-devdeck"
+version = "1.0.0"
+edition = "2021"
+description = "A developer deck for Tauri apps: live memory, CPU and resource-leak monitor in its own window."
+license = "MIT"
+repository = "https://github.com/n0t4u404/tauri-plugin-devdeck"
+readme = "README.md"
+keywords = ["tauri", "tauri-plugin", "devtools", "memory", "profiling"]
+categories = ["development-tools", "gui"]
+links = "tauri-plugin-devdeck"
+rust-version = "1.77"
+exclude = ["/node_modules", "/guest-js", "/dist", "/package.json", "/package-lock.json", "/tsconfig.json"]
+
+[dependencies]
+tauri = "2"
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }
