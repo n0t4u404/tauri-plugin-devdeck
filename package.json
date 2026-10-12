@@ -1,0 +1,36 @@
+{
+	"name": "tauri-plugin-devdeck",
+	"version": "0.1.0",
+	"description": "JavaScript API of tauri-plugin-devdeck: open the developer deck window of a Tauri app.",
+	"license": "MIT",
+	"author": "n0t4u404",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/n0t4u404/tauri-plugin-devdeck.git"
+	},
+	"keywords": ["tauri", "tauri-plugin", "devtools", "memory", "profiling"],
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsc -p .",
+		"prepare": "npm run build",
+		"prepublishOnly": "npm run build"
+	},
+	"peerDependencies": {
+		"@tauri-apps/api": "^2.0.0"
+	},
+	"devDependencies": {
+		"@tauri-apps/api": "^2.0.0",
+		"typescript": "^5.8.2"
+	}
+}
