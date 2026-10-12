@@ -269,6 +269,10 @@
 			background-color: var(--base-color-bg-tertiary);
 		}
 
+		.legend td.grows {
+			color: var(--base-color-danger);
+		}
+
 		.legend tr.hidden td {
 			opacity: 0.35;
 		}
@@ -455,6 +459,8 @@
 		}
 		const formatMegabytes = value => value >= 1024 ? `${(value / 1024).toFixed(2)} GB` : `${value.toFixed(1)} MB`;
 		const formatPercent = value => `${value.toFixed(1)}%`;
+		const signed = (value, format) => value > 0 ? `+${format(value)}` : value < 0 ? `−${format(-value)}` : "0";
+		const MINUTE = 60;
 
 		const niceStep = (range, count) => {
 			const raw = range / count;
@@ -477,19 +483,21 @@
 			return { context, width, height }
 		}
 
-		const statsOf = values => {
+		const statsOf = (values, extra = {}) => {
 			const present = values.filter(value => value !== null && value !== undefined);
 			const sum = present.reduce((total, value) => total + value, 0);
 			return {
 				min: present.length ? Math.min(...present) : 0,
 				max: present.length ? Math.max(...present) : 0,
 				avg: present.length ? sum / present.length : 0,
-				current: present.at(-1) ?? 0
+				current: present.at(-1) ?? 0,
+				...extra
 			}
 		}
 
 		class Panel {
-			constructor({ title, subtitle, unit, columns, note }) {
+			constructor({ title, subtitle, unit, columns, note, kind = "bars" }) {
+				this.kind = kind;
 				this.unit = unit;
 				this.columns = columns;
 				this.sort = { column: columns.find(column => column.isDefaultSort)?.key ?? columns[0].key, isDescending: true };
@@ -563,7 +571,9 @@
 					row.append(name);
 					for (const column of this.columns) {
 						const cell = document.createElement("td");
-						cell.textContent = column.format(series.stats[column.key] ?? 0);
+						const value = series.stats[column.key] ?? 0;
+						cell.textContent = column.format(value);
+						if (column.isGrowthWarning && value > 0) cell.className = "grows";
 						row.append(cell);
 					}
 					row.addEventListener("mouseenter", () => {
@@ -594,7 +604,8 @@
 				const series = this.visibleSeries();
 				const count = this.data.times.length;
 				const totals = Array.from({ length: count }, (_, index) => series.reduce((sum, item) => sum + (item.values[index] ?? 0), 0));
-				const peak = Math.max(1e-9, ...totals);
+				const isStacked = this.kind === "bars";
+				const peak = Math.max(1e-9, ...(isStacked ? totals : series.flatMap(item => item.values.map(value => value ?? 0))));
 				const step = niceStep(peak, 4);
 				const top = Math.ceil(peak / step) * step;
 
@@ -635,18 +646,32 @@
 					context.fillText(clock(this.data.times[index]), lineX, height - 4);
 				}
 
-				const barWidth = Math.max(1, slot * 0.8);
-				const base = new Array(count).fill(0);
-				for (const item of series) {
-					context.globalAlpha = this.highlight && this.highlight !== item.key ? 0.25 : 1;
-					context.fillStyle = item.color;
-					for (let index = 0; index < count; index++) {
-						const value = item.values[index] ?? 0;
-						if (value <= 0) continue;
-						const from = y(base[index]);
-						const to = y(base[index] + value);
-						context.fillRect(x(index) - barWidth / 2, to, barWidth, Math.max(1, from - to));
-						base[index] += value;
+				if (isStacked) {
+					const barWidth = Math.max(1, slot * 0.8);
+					const base = new Array(count).fill(0);
+					for (const item of series) {
+						context.globalAlpha = this.highlight && this.highlight !== item.key ? 0.25 : 1;
+						context.fillStyle = item.color;
+						for (let index = 0; index < count; index++) {
+							const value = item.values[index] ?? 0;
+							if (value <= 0) continue;
+							const from = y(base[index]);
+							const to = y(base[index] + value);
+							context.fillRect(x(index) - barWidth / 2, to, barWidth, Math.max(1, from - to));
+							base[index] += value;
+						}
+					}
+				} else {
+					context.lineWidth = 1.5;
+					for (const item of series) {
+						context.globalAlpha = this.highlight && this.highlight !== item.key ? 0.25 : 1;
+						context.strokeStyle = item.color;
+						context.beginPath();
+						item.values.forEach((value, index) => {
+							if (index === 0) context.moveTo(x(index), y(value ?? 0));
+							else context.lineTo(x(index), y(value ?? 0));
+						});
+						context.stroke();
 					}
 				}
 
@@ -768,15 +793,46 @@
 				unit: formatPercent,
 				columns: columns(formatPercent),
 				note: "100% is one fully busy core. WebView2 processes are shared by all windows of the app — this window is one of the pages."
+			}),
+			gauges: new Panel({
+				title: "Resources",
+				subtitle: "created minus released · devGauge()",
+				unit: formatNumber,
+				kind: "lines",
+				columns: [
+					{ key: "min", label: "min", format: formatNumber },
+					{ key: "max", label: "max", format: formatNumber },
+					{ key: "current", label: "current", format: formatNumber, isDefaultSort: true },
+					{ key: "minute", label: "1 min", format: value => signed(value, formatNumber), isGrowthWarning: true }
+				],
+				note: "A number that only grows and never comes back is a leak."
+			}),
+			traffic: new Panel({
+				title: "Calls and events",
+				subtitle: "per second · devTotal()",
+				unit: formatNumber,
+				columns: [
+					{ key: "avg", label: "avg", format: formatNumber, isDefaultSort: true },
+					{ key: "max", label: "max", format: formatNumber },
+					{ key: "current", label: "current", format: formatNumber },
+					{ key: "total", label: "total", format: formatNumber }
+				]
 			})
 		}
-		const tasks = new Stat("Tokio tasks (Rust)", formatNumber);
+
+		const stats = {
+			heap: new Stat("JS heap", formatMegabytes),
+			elements: new Stat("Elements on the page", formatNumber),
+			tasks: new Stat("Tokio tasks (Rust)", formatNumber)
+		}
 
 		const deck = document.getElementById("deck");
 		const statsRow = document.createElement("div");
 		statsRow.className = "stats";
-		statsRow.append(tasks.element);
-		deck.append(panels.memory.element, panels.cpu.element, statsRow);
+		statsRow.append(stats.heap.element, stats.elements.element, stats.tasks.element);
+		deck.append(panels.memory.element, panels.cpu.element, statsRow, panels.gauges.element, panels.traffic.element);
+
+		const minuteChange = values => (values.at(-1) ?? 0) - (values.at(-1 - MINUTE) ?? values[0] ?? 0);
 
 		const processSeries = (samples, read) => samples.at(-1).processes.map(process => {
 			const key = `${process.kind}:${process.pid}`;
@@ -820,7 +876,31 @@
 			const times = samples.map(sample => sample.time);
 			panels.memory.update({ times, series: processSeries(samples, process => megabytes(process.memory)) });
 			panels.cpu.update({ times, series: processSeries(samples, process => process.cpu) });
-			tasks.update(samples.map(sample => sample.rust.tasks));
+			stats.heap.update(samples.map(sample => megabytes(sample.page?.heap?.used ?? 0)));
+			stats.elements.update(samples.map(sample => sample.page?.domNodes ?? 0));
+			stats.tasks.update(samples.map(sample => sample.rust.tasks));
+
+			const gaugeNames = [...new Set(samples.flatMap(sample => Object.keys(sample.page?.gauges ?? {})))];
+			panels.gauges.update({
+				times,
+				series: gaugeNames.map(name => {
+					const values = samples.map(sample => sample.page?.gauges?.[name] ?? 0);
+					return { key: `gauge:${name}`, name, color: colorOf(`gauge:${name}`), values, stats: statsOf(values, { minute: minuteChange(values) }) }
+				})
+			});
+
+			const totalNames = [...new Set(samples.flatMap(sample => Object.keys(sample.page?.totals ?? {})))];
+			panels.traffic.update({
+				times,
+				series: totalNames.map(name => {
+					const cumulative = samples.map(sample => sample.page?.totals?.[name] ?? null);
+					const values = cumulative.map((value, index) => {
+						const before = cumulative[index - 1];
+						return value === null || before === null || before === undefined ? 0 : Math.max(0, value - before);
+					});
+					return { key: `total:${name}`, name, color: colorOf(`total:${name}`), values, stats: statsOf(values, { total: cumulative.at(-1) ?? 0 }) }
+				}).filter(series => series.stats.max > 0)
+			});
 		}
 
 		const poll = async () => {

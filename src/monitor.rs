@@ -18,6 +18,11 @@ const MAX_LOG_BYTES: u64 = 4 * 1024 * 1024;
 
 static SAMPLES: Mutex<VecDeque<Value>> = Mutex::new(VecDeque::new());
 static IS_SAMPLING: AtomicBool = AtomicBool::new(false);
+static PAGE_REPORT: Mutex<Option<Value>> = Mutex::new(None);
+
+pub fn set_page_report(report: Value) {
+    *PAGE_REPORT.lock().unwrap() = Some(report);
+}
 
 pub fn samples_json() -> Vec<u8> {
     let samples = SAMPLES.lock().unwrap();
@@ -63,7 +68,8 @@ pub fn start<R: Runtime>(app: AppHandle<R>) {
                 "processes": processes,
                 "rust": {
                     "tasks": tokio::runtime::Handle::current().metrics().num_alive_tasks()
-                }
+                },
+                "page": PAGE_REPORT.lock().unwrap().clone().unwrap_or(Value::Null)
             });
 
             if let Some(path) = &log {
