@@ -1,4 +1,4 @@
-import { niceStep, sizeCanvas, token } from "#/shared/chart.js";
+import { niceStep, sizeCanvas, token, traceCurve, verticalFill, withAlpha } from "#/shared/chart.js";
 import { formatSpan } from "#/shared/format.js";
 import { HEADER_HEIGHT, LABEL_WIDTH, OVERVIEW_RULER, RULER_HEIGHT, nearestIndex, state, visibleRange } from "./state.js";
 
@@ -17,9 +17,10 @@ const niceTop = peak => {
 const drawTicks = (context, { left, width, start, end, lineTop, lineBottom, labelY }) => {
 	const span = end - start;
 	const step = TIME_STEPS.find(candidate => candidate / span * width >= 70) ?? TIME_STEPS.at(-1);
-	context.strokeStyle = token("--base-color-border-faint");
+	context.strokeStyle = token("--chart-grid");
 	context.fillStyle = token("--base-color-text-muted");
 	context.lineWidth = 1;
+	context.setLineDash([2, 6]);
 	context.font = `11px ${token("--font-family-body")}`;
 	context.textAlign = "right";
 	context.textBaseline = "alphabetic";
@@ -31,6 +32,7 @@ const drawTicks = (context, { left, width, start, end, lineTop, lineBottom, labe
 		context.stroke();
 		if (x - left > 30) context.fillText(formatSpan(time), x - 4, labelY);
 	}
+	context.setLineDash([]);
 }
 
 const totalsOf = (series, from, to) => {
@@ -53,45 +55,63 @@ export const drawOverview = () => {
 		const totals = totalsOf(track.series, 0, times.length - 1);
 		const top = peakOf(totals);
 		const y = value => plotBottom - value / top * (plotBottom - plotTop);
+		const points = totals.map((value, index) => [xOf(times[index]), y(value)]);
+		if (isFilled) {
+			context.beginPath();
+			traceCurve(context, points);
+			context.lineTo(points.at(-1)[0], plotBottom);
+			context.lineTo(points[0][0], plotBottom);
+			context.closePath();
+			context.fillStyle = verticalFill(context, color, plotTop, plotBottom, 0.35, 0.02);
+			context.fill();
+		}
 		context.beginPath();
-		totals.forEach((value, index) => index === 0 ? context.moveTo(xOf(times[index]), y(value)) : context.lineTo(xOf(times[index]), y(value)));
+		traceCurve(context, points);
 		context.strokeStyle = color;
-		context.lineWidth = 1.25;
+		context.lineWidth = 1.5;
 		context.stroke();
-		if (!isFilled) return;
-		context.lineTo(xOf(times.at(-1)), plotBottom);
-		context.lineTo(xOf(times[0]), plotBottom);
-		context.closePath();
-		context.globalAlpha = 0.25;
-		context.fillStyle = color;
-		context.fill();
-		context.globalAlpha = 1;
 	}
 	const accent = token("--base-color-accent");
-	const success = token("--base-color-success");
+	const memoryColor = token("--overview-memory");
 	drawTotal(tracks.find(track => track.id === "cpu"), accent, true);
-	drawTotal(tracks.find(track => track.id === "memory"), success, false);
+	drawTotal(tracks.find(track => track.id === "memory"), memoryColor, false);
 
 	context.font = `600 10px ${token("--font-family-body")}`;
-	context.textAlign = "right";
-	context.textBaseline = "top";
-	context.fillStyle = accent;
-	context.fillText("CPU", width - 4, plotTop);
-	context.fillStyle = success;
-	context.fillText("MEM", width - 4, plotTop + 12);
+	context.textBaseline = "middle";
+	context.textAlign = "left";
+	const legend = [["CPU", accent], ["Memory", memoryColor]];
+	let legendX = width - 8 - legend.reduce((sum, [label]) => sum + context.measureText(label).width + 22, 0);
+	for (const [label, color] of legend) {
+		context.beginPath();
+		context.arc(legendX + 4, plotTop + 6, 3.5, 0, Math.PI * 2);
+		context.fillStyle = color;
+		context.fill();
+		context.fillStyle = token("--base-color-text-secondary");
+		context.fillText(label, legendX + 12, plotTop + 6.5);
+		legendX += context.measureText(label).width + 22;
+	}
 
 	const left = xOf(view.start);
 	const right = xOf(view.end);
-	context.fillStyle = `rgba(${token("--base-color-bg-primary-rgb")}, 0.65)`;
+	const bandTop = OVERVIEW_RULER + 2;
+	const bandHeight = height - bandTop - 2;
+	context.fillStyle = `rgba(${token("--base-color-bg-primary-rgb")}, 0.6)`;
 	context.fillRect(0, OVERVIEW_RULER, left, height - OVERVIEW_RULER);
 	context.fillRect(right, OVERVIEW_RULER, width - right, height - OVERVIEW_RULER);
-	context.strokeStyle = accent;
+	context.beginPath();
+	context.roundRect(left + 0.5, bandTop + 0.5, Math.max(1, right - left - 1), bandHeight - 1, 8);
+	context.fillStyle = withAlpha(accent, 0.06);
+	context.fill();
+	context.strokeStyle = withAlpha(accent, 0.7);
 	context.lineWidth = 1;
-	context.strokeRect(left + 0.5, OVERVIEW_RULER + 0.5, Math.max(1, right - left - 1), height - OVERVIEW_RULER - 1);
-	context.fillStyle = accent;
-	const middle = (OVERVIEW_RULER + height) / 2;
-	context.fillRect(left - 2, middle - 8, 4, 16);
-	context.fillRect(right - 2, middle - 8, 4, 16);
+	context.stroke();
+	const middle = bandTop + bandHeight / 2;
+	for (const edge of [left, right]) {
+		context.beginPath();
+		context.roundRect(edge - 3, middle - 10, 6, 20, 3);
+		context.fillStyle = token("--base-color-text-primary");
+		context.fill();
+	}
 }
 
 export const layout = () => {
@@ -104,42 +124,52 @@ export const layout = () => {
 	});
 }
 
-const drawStacked = (context, { series, from, to, xOf, y, times }) => {
-	const base = new Array(to - from + 1).fill(0);
+const drawStacked = (context, { series, from, to, xOf, y, times, plotTop, plotBottom }) => {
+	let base = new Array(to - from + 1).fill(0);
 	for (const item of series) {
+		const tops = base.map((value, offset) => value + (item.values[from + offset] ?? 0));
+		const upper = tops.map((value, offset) => [xOf(times[from + offset]), y(value)]);
+		const lower = base.map((value, offset) => [xOf(times[from + offset]), y(value)]).reverse();
 		context.beginPath();
-		for (let index = from; index <= to; index++) {
-			const value = base[index - from] + (item.values[index] ?? 0);
-			if (index === from) context.moveTo(xOf(times[index]), y(value));
-			else context.lineTo(xOf(times[index]), y(value));
-		}
-		for (let index = to; index >= from; index--) context.lineTo(xOf(times[index]), y(base[index - from]));
+		traceCurve(context, upper);
+		traceCurve(context, lower, { isContinuing: true });
 		context.closePath();
-		context.globalAlpha = 0.85;
-		context.fillStyle = item.color;
+		context.fillStyle = verticalFill(context, item.color, plotTop, plotBottom, 0.55, 0.14);
 		context.fill();
-		for (let index = from; index <= to; index++) base[index - from] += item.values[index] ?? 0;
+		context.beginPath();
+		traceCurve(context, upper);
+		context.strokeStyle = item.color;
+		context.lineWidth = 1.25;
+		context.stroke();
+		base = tops;
 	}
-	context.globalAlpha = 1;
 }
 
-const drawLines = (context, { series, from, to, xOf, y, times }) => {
-	context.lineWidth = 1.5;
+const drawLines = (context, { series, from, to, xOf, y, times, plotTop, plotBottom }) => {
 	for (const item of series) {
-		context.strokeStyle = item.color;
-		context.beginPath();
-		let isDrawing = false;
+		const runs = [[]];
 		for (let index = from; index <= to; index++) {
 			const value = item.values[index];
 			if (value === null || value === undefined) {
-				isDrawing = false;
+				if (runs.at(-1).length) runs.push([]);
 				continue;
 			}
-			if (isDrawing) context.lineTo(xOf(times[index]), y(value));
-			else context.moveTo(xOf(times[index]), y(value));
-			isDrawing = true;
+			runs.at(-1).push([xOf(times[index]), y(value)]);
 		}
-		context.stroke();
+		for (const points of runs.filter(run => run.length)) {
+			context.beginPath();
+			traceCurve(context, points);
+			context.lineTo(points.at(-1)[0], plotBottom);
+			context.lineTo(points[0][0], plotBottom);
+			context.closePath();
+			context.fillStyle = verticalFill(context, item.color, plotTop, plotBottom, 0.18, 0);
+			context.fill();
+			context.beginPath();
+			traceCurve(context, points);
+			context.strokeStyle = item.color;
+			context.lineWidth = 1.75;
+			context.stroke();
+		}
 	}
 }
 
@@ -155,12 +185,14 @@ export const drawTracks = () => {
 	const [from, to] = visibleRange();
 	const font = token("--font-family-body");
 
-	context.fillStyle = token("--base-color-bg-tertiary");
+	context.fillStyle = `rgba(${token("--base-color-text-primary-rgb")}, 0.025)`;
 	context.fillRect(0, 0, LABEL_WIDTH, height);
+	context.fillStyle = token("--base-color-border-faint");
+	context.fillRect(LABEL_WIDTH - 1, 0, 1, height);
 	drawTicks(context, { left: LABEL_WIDTH, width: plotWidth, start: view.start, end: view.end, lineTop: RULER_HEIGHT, lineBottom: height, labelY: 15 });
 
 	for (const { track, top, height: bandHeight } of bands) {
-		context.strokeStyle = token("--base-color-border-light");
+		context.strokeStyle = token("--base-color-border-faint");
 		context.beginPath();
 		context.moveTo(0, top + 0.5);
 		context.lineTo(width, top + 0.5);
@@ -168,9 +200,9 @@ export const drawTracks = () => {
 
 		context.textAlign = "left";
 		context.textBaseline = "middle";
-		context.font = `500 12px ${font}`;
+		context.font = `600 12px ${font}`;
 		context.fillStyle = token("--base-color-text-primary");
-		context.fillText(`${collapsed.has(track.id) ? "▸" : "▾"}  ${track.title}`, 10, top + HEADER_HEIGHT / 2);
+		context.fillText(`${collapsed.has(track.id) ? "▸" : "▾"}  ${track.title}`, 12, top + HEADER_HEIGHT / 2 + 2);
 		if (collapsed.has(track.id)) continue;
 
 		const plotTop = top + 6;
@@ -184,25 +216,23 @@ export const drawTracks = () => {
 
 		context.font = `11px ${font}`;
 		context.fillStyle = token("--base-color-text-muted");
-		context.fillText(track.unit(topValue), 10, top + HEADER_HEIGHT + 8);
+		context.fillText(track.unit(topValue), 26, top + HEADER_HEIGHT + 10);
 
 		context.save();
 		context.beginPath();
 		context.rect(LABEL_WIDTH, plotTop, plotWidth, plotBottom - plotTop);
 		context.clip();
 		const draw = isStacked ? drawStacked : drawLines;
-		draw(context, { series: track.series, from, to, xOf, y, times });
+		draw(context, { series: track.series, from, to, xOf, y, times, plotTop, plotBottom });
 		context.restore();
 	}
 
 	if (hoverTime !== null) {
 		const x = Math.round(xOf(times[nearestIndex(hoverTime)])) + 0.5;
-		context.strokeStyle = token("--base-color-accent");
-		context.setLineDash([3, 3]);
+		context.strokeStyle = withAlpha(token("--base-color-text-primary"), 0.4);
 		context.beginPath();
 		context.moveTo(x, RULER_HEIGHT);
 		context.lineTo(x, height);
 		context.stroke();
-		context.setLineDash([]);
 	}
 }

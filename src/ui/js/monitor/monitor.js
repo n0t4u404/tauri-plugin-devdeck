@@ -18,7 +18,7 @@ const panels = {
 		subtitle: "% of one core · last 5 min",
 		unit: formatPercent,
 		columns: columns(formatPercent),
-		note: "100% is one fully busy core. WebView2 processes are shared by all windows of the app — this window is one of the pages."
+		note: "100% is one fully busy core. Web view processes are shared by all windows of the app — this window is one of the pages."
 	}),
 	gauges: new Panel({
 		title: "Resources",
@@ -37,6 +37,7 @@ const panels = {
 		title: "Calls and events",
 		subtitle: "per second · devTotal()",
 		unit: formatNumber,
+		kind: "bars",
 		columns: [
 			{ key: "avg", label: "avg", format: formatNumber, isDefaultSort: true },
 			{ key: "max", label: "max", format: formatNumber },
@@ -98,7 +99,8 @@ const render = samples => {
 	const times = samples.map(sample => sample.time);
 	panels.memory.update({ times, series: processSeries(samples, process => megabytes(process.memory)) });
 	panels.cpu.update({ times, series: processSeries(samples, process => process.cpu) });
-	stats.heap.update(samples.map(sample => megabytes(sample.page?.heap?.used ?? 0)));
+	if (samples.some(sample => sample.page?.heap)) stats.heap.update(samples.map(sample => megabytes(sample.page?.heap?.used ?? 0)));
+	else stats.heap.unavailable("Not available in this web view");
 	stats.elements.update(samples.map(sample => sample.page?.domNodes ?? 0));
 	stats.tasks.update(samples.map(sample => sample.rust.tasks));
 

@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Value};
 use sysinfo::{Pid, Process, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
-use tauri::{AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 use crate::WINDOW_LABEL;
 
@@ -52,15 +52,19 @@ pub fn recording_json() -> Vec<u8> {
     status.to_string().into_bytes()
 }
 
-pub fn start_recording() {
+pub const RECORDING_EVENT: &str = "devdeck:recording";
+
+pub fn start_recording<R: Runtime>(app: &AppHandle<R>) {
     let mut recording = RECORDING.lock().unwrap();
     if recording.is_none() {
         *recording = Some(Recording { started: now(), samples: Vec::new() });
+        let _ = app.emit(RECORDING_EVENT, true);
     }
 }
 
 pub fn stop_recording<R: Runtime>(app: &AppHandle<R>) -> Result<Value, String> {
     let recording = RECORDING.lock().unwrap().take().ok_or("not recording")?;
+    let _ = app.emit(RECORDING_EVENT, false);
     let stopped = now();
     let samples = recording.samples.len();
     let file = json!({
@@ -137,7 +141,9 @@ pub fn reveal<R: Runtime>(app: &AppHandle<R>, name: &str) -> Result<(), String> 
     #[cfg(not(any(windows, target_os = "macos")))]
     let result = std::process::Command::new("xdg-open").arg(path.parent().unwrap_or(&path)).spawn();
 
-    result.map(|_| ()).map_err(|e| e.to_string())
+    let mut child = result.map_err(|e| e.to_string())?;
+    std::thread::spawn(move || child.wait());
+    Ok(())
 }
 
 pub fn start<R: Runtime>(app: AppHandle<R>) {
@@ -161,14 +167,16 @@ pub fn start<R: Runtime>(app: AppHandle<R>) {
             tokio::time::sleep(if is_recording { RECORD_INTERVAL } else { SAMPLE_INTERVAL }).await;
             if app.get_webview_window(WINDOW_LABEL).is_none() {
                 IS_SAMPLING.store(false, Ordering::SeqCst);
-                RECORDING.lock().unwrap().take();
+                if RECORDING.lock().unwrap().take().is_some() {
+                    let _ = app.emit(RECORDING_EVENT, false);
+                }
                 break;
             }
 
             system.refresh_processes_specifics(
                 ProcessesToUpdate::All,
                 true,
-                ProcessRefreshKind::nothing().with_memory().with_cpu().with_cmd(UpdateKind::OnlyIfNotSet)
+                ProcessRefreshKind::nothing().with_memory().with_cpu().with_cmd(UpdateKind::OnlyIfNotSet).without_tasks()
             );
             let processes: Vec<Value> = family(&system, own).into_iter().map(|process| json!({
                 "pid": process.pid().as_u32(),
@@ -248,6 +256,9 @@ fn file_stamp(millis: u64) -> String {
 fn family(system: &System, root: Pid) -> Vec<&Process> {
     let mut children: HashMap<Pid, Vec<Pid>> = HashMap::new();
     for (pid, process) in system.processes() {
+        if process.thread_kind().is_some() {
+            continue;
+        }
         if let Some(parent) = process.parent() {
             children.entry(parent).or_default().push(*pid);
         }
@@ -275,7 +286,13 @@ fn kind_of(process: &Process, own: Pid) -> String {
 
     let args: Vec<String> = process.cmd().iter().map(|arg| arg.to_string_lossy().into_owned()).collect();
     let value_of = |key: &str| args.iter().find_map(|arg| arg.strip_prefix(key).map(str::to_string));
-    let name = process.name().to_string_lossy().to_lowercase();
+    let name = args.first()
+        .and_then(|program| Path::new(program).file_name())
+        .map(|file| file.to_string_lossy().to_lowercase())
+        .unwrap_or_else(|| process.name().to_string_lossy().to_lowercase());
+    if let Some(webkit) = name.strip_prefix("webkit").and_then(|rest| rest.strip_suffix("process")) {
+        return format!("webkit:{webkit}");
+    }
     if !name.contains("webview") {
         return name.trim_end_matches(".exe").to_string();
     }

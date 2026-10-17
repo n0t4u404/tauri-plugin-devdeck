@@ -7,7 +7,10 @@ const KIND_NAMES = {
 	"webview:storage": "WebView2 — storage",
 	"webview:audio": "WebView2 — audio",
 	"webview:utility": "WebView2 — utility",
-	"webview:crashpad-handler": "WebView2 — crashpad"
+	"webview:crashpad-handler": "WebView2 — crashpad",
+	"webkit:web": "WebKit — page",
+	"webkit:network": "WebKit — network",
+	"webkit:gpu": "WebKit — GPU"
 }
 
 export const processName = process => `${KIND_NAMES[process.kind] ?? process.kind} · ${process.pid}`;

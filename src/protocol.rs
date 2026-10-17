@@ -70,7 +70,7 @@ pub fn respond<R: Runtime>(app: &AppHandle<R>, request: &Request<Vec<u8>>) -> Re
         (false, "/samples") => (StatusCode::OK, "application/json", crate::monitor::samples_json()),
         (false, "/recording") => (StatusCode::OK, "application/json", crate::monitor::recording_json()),
         (true, "/recording/start") => {
-            crate::monitor::start_recording();
+            crate::monitor::start_recording(app);
             (StatusCode::OK, "application/json", crate::monitor::recording_json())
         }
         (true, "/recording/stop") => json(crate::monitor::stop_recording(app)),

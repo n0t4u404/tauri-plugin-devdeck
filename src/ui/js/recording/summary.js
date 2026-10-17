@@ -83,7 +83,9 @@ export const renderSummary = () => {
 	const cpu = trackOf("cpu");
 	const memory = trackOf("memory");
 	if (cpu && memory) {
-		cards.push(table("Processes", ["", "avg CPU", "max CPU", "memory at start", "at end", "change"], processRows(cpu, memory, from, to)));
+		const processes = table("Processes", ["", "avg CPU", "max CPU", "memory at start", "at end", "change"], processRows(cpu, memory, from, to));
+		processes.classList.add("is-wide");
+		cards.push(processes);
 	}
 
 	const page = [trackOf("heap"), trackOf("elements")].filter(Boolean)

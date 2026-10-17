@@ -1,57 +1,43 @@
 # tauri-plugin-devdeck
 
 A developer deck for [Tauri 2](https://tauri.app) apps: a separate window that shows, live, how much memory and CPU
-every process of your app uses, and which resources your page creates and never releases.
+every process of your app uses, which resources your page creates and never releases, and how chatty your IPC is —
+plus a recorder to capture a session and study it on a timeline.
 
 Built to answer questions like *"why does the app take 6 GB after a night on this screen?"* without guessing.
 
-> Status: early. The **Monitor** and **Recording** are ready. Planned: **Controls** (put the app into any state for previews) and **Capture** (screenshots and animated WebP of
-> a window).
+> **Status:** early. **Monitor** and **Recording** are ready. Planned: **Controls** (put the app into any state for
+> previews) and **Capture** (screenshots and animated WebP of a window).
 
-## What it shows
+## Quick start
 
-- **Memory and CPU of every process**: your app and all of its child processes. On Windows each WebView2 process is
-  labelled by role (page, GPU, browser, network, …), so you can see whether the page or the GPU process grows. Child
-  processes you start (a game, a server) show up too. CPU is in % of one core: 100% means one core is fully busy.
-- **Page**: JS heap, elements on the page, live tokio tasks.
-- **Resources** (created minus released): your own counters, made with `devGauge`. A number that only grows is a
-  leak: WebGL contexts, blob URLs, subscriptions, timers, open sockets. The **1 min** column turns red when it grows.
-- **Calls and events**: your own counters per second, made with `devTotal`. Use them for IPC calls, events and
-  requests.
+1. Add the plugin, in debug builds only — see [Install](#install).
+2. Start it in your frontend, in development only:
 
-Every panel shows the last 5 minutes. Sort the legend by clicking a column. Click a row to hide it, or hover it to
-highlight it on the chart.
+   ```ts
+   import { startDevdeck } from "tauri-plugin-devdeck";
 
-Every sample is also appended to `devdeck.jsonl` in the app log folder (`app_log_dir`), so a long session can be
-analysed later. The file is cleared when the deck opens, and again once it passes 4 MB.
+   if (import.meta.env.DEV) startDevdeck();
+   ```
 
-## Recording
-
-Press **Record**, do what you want to measure, then **Stop**. Samples are taken every 250 ms (up to 10 minutes) and
-saved to `devdeck-recordings/` in the app log folder; the deck then opens the **Recording** tab with a
-Performance-style timeline: CPU and memory stacked per process, JS heap, elements, resources and calls.
-
-Zoom with the wheel, drag to pan, double-click to reset, or pick a range on the overview strip. The summary under the
-timeline counts only the selected range: average and max CPU per process, memory at its start and end, what grew,
-and how many calls happened. Older recordings stay in the list, so you can open one from before a fix and compare.
+3. Run the app and press **Ctrl+Alt+M**.
 
 ## Install
 
-Rust side:
+**Rust** — `src-tauri/Cargo.toml`:
 
 ```toml
-# src-tauri/Cargo.toml
 [dependencies]
-tauri-plugin-devdeck = { git = "https://github.com/n0t4u404/tauri-plugin-devdeck" }
+tauri-plugin-devdeck = { git = "https://github.com/n0t4u404/tauri-plugin-devdeck", branch = "main" }
 ```
 
-JavaScript side:
+**JavaScript:**
 
 ```sh
-npm i github:n0t4u404/tauri-plugin-devdeck
+npm i github:n0t4u404/tauri-plugin-devdeck#main
 ```
 
-Register the plugin, in debug builds only:
+**Register** the plugin, in debug builds only:
 
 ```rust
 let builder = tauri::Builder::default();
@@ -60,37 +46,73 @@ let builder = tauri::Builder::default();
 let builder = builder.plugin(tauri_plugin_devdeck::init());
 ```
 
-Allow it for the window that calls it, in a capability:
+**Allow** it for the window that calls it, in a capability (`src-tauri/capabilities/*.json`):
 
 ```json
 "permissions": ["core:default", "devdeck:default"]
 ```
 
-## Use
+`devdeck:default` allows two commands: `open` (open the deck window) and `report` (send the page report).
 
-Start it once, as early as possible, in development only:
+## Monitor
 
-```ts
-import { startDevdeck } from "tauri-plugin-devdeck";
+The **Monitor** tab updates every second and keeps the last 5 minutes.
 
-if (import.meta.env.DEV) startDevdeck();
-```
+| Panel | What it shows |
+|---|---|
+| **Memory** | Memory of your app and every child process, stacked. |
+| **CPU** | CPU of every process, in % of one core: 100% means one core is fully busy. |
+| **JS heap · Elements · Tokio tasks** | The page's JS heap, the number of DOM elements, live tokio tasks in Rust. |
+| **Resources** | Your own counters made with `devGauge`: created minus released. |
+| **Calls and events** | Your own counters made with `devTotal` / `devEvent`, per second. |
 
-Press **Ctrl+Alt+M** to open the deck, or call `openDevdeck()`.
+- Processes are your app and all of its children: web view processes and anything you start yourself (a game,
+  a server). Web view processes are labelled by role where the platform allows it (see [Platforms](#platforms)).
+- Sort a legend by clicking a column. Click a row to hide it, hover it to highlight it on the chart.
+- A spike far above the usual level is drawn as a red `▲ value` mark at the top, so it doesn't flatten the rest of
+  the chart.
+- In **Resources**, the **1 min** column turns red when a counter grew over the last minute. A number that only
+  grows is a leak: WebGL contexts, blob URLs, subscriptions, timers, open sockets.
 
-```ts
-startDevdeck({
-	hotkey: "Ctrl+Shift+D",  // default: "Ctrl+Alt+M"
-	reportIntervalMs: 2000   // how often the page sends its report, default: 1000
+The top bar shows total memory, CPU, the number of processes and uptime.
+
+Every sample is also appended to `devdeck.jsonl` in the app log folder (`app_log_dir`), so a long session can be
+analysed later. The file is cleared when the deck opens, and again once it passes 4 MB.
+
+## Recording
+
+Press **Record**, do what you want to measure, then **Stop**.
+
+- Samples are taken every 250 ms, up to 10 minutes, and saved to `devdeck-recordings/` in the app log folder as
+  `recording-<date>-<time>.devdeck.json`.
+- The deck then opens the **Recording** tab: a Performance-style timeline with CPU and memory stacked per process,
+  JS heap, elements, resources and calls.
+- Zoom with the wheel, drag to pan, double-click to reset, or pick a range on the overview strip. Click a track name
+  to collapse it.
+- The summary under the timeline counts only the selected range: average and max CPU per process, memory at its
+  start and end, what grew, and how many calls happened.
+- Older recordings stay in the list, so you can open one from before a fix and compare. **Show in folder** opens the
+  recordings folder.
+
+### The `devdeck:recording` event
+
+The plugin emits `devdeck:recording` to the app: `true` when a recording starts, `false` when it stops (also when the
+deck window is closed mid-recording). Use it to switch off anything that would skew the numbers — for example, close
+an open web inspector, which keeps every request and log line in memory:
+
+```rust
+use tauri::Listener;
+
+app.listen_any("devdeck:recording", move |event| {
+    let is_recording = event.payload() == "true";
+    // e.g. close the DevTools of every window while recording
 });
 ```
 
-`startDevdeck()` returns a function that stops it.
-
-### Counters
+## Counters
 
 ```ts
-import { devGauge, devTotal } from "tauri-plugin-devdeck";
+import { devEvent, devGauge, devTotal } from "tauri-plugin-devdeck";
 
 const renderer = new WebGLRenderer();
 devGauge("WebGL contexts", 1);
@@ -100,18 +122,35 @@ devGauge("WebGL contexts", -1);
 
 devTotal(`invoke ${command}`);
 devTotal("bytes received", chunk.length);
+
+listen("friends:list", event => devEvent("event friends:list", event.payload));
 ```
 
-- `devGauge(name, delta)`: adds `delta` to a value that goes up and down. Shown as lines in **Resources**.
-- `devTotal(name, amount = 1)`: adds to a running total. Shown per second in **Calls and events**.
-- `devEvent(name, payload)`: counts an event like `devTotal(name)`, and also counts `<name> · same` when the payload is
-  the same as last time. If both lines grow at the same rate, the sender keeps sending data that didn't change.
-  Payloads are compared as JSON, so keep it for events with small payloads.
+| Function | What it does | Shown in |
+|---|---|---|
+| `devGauge(name, delta)` | Adds `delta` to a value that goes up and down. | **Resources** |
+| `devTotal(name, amount = 1)` | Adds to a running total. | **Calls and events**, per second |
+| `devEvent(name, payload?)` | Counts like `devTotal(name)`, and also counts `<name> · same` when the payload equals the previous one. | **Calls and events** |
 
-Before `startDevdeck()` is called (and in release builds, where you don't call it) the counters do nothing, so they
+If `<name>` and `<name> · same` grow at the same rate, the sender keeps sending data that didn't change. Payloads are
+compared as JSON, so use `devEvent` for events with small payloads.
+
+Before `startDevdeck()` is called — and in release builds, where you don't call it — the counters do nothing, so they
 are safe to leave in your code.
 
-### Window size
+## Options
+
+```ts
+const stop = startDevdeck({
+	hotkey: "Ctrl+Shift+D",  // default: "Ctrl+Alt+M"
+	reportIntervalMs: 2000   // how often the page sends its report, default: 1000
+});
+```
+
+- `startDevdeck()` returns a function that stops it. A second call while it runs does nothing.
+- `openDevdeck()` opens (or focuses) the deck window from code, e.g. from a button.
+
+Window size, on the Rust side:
 
 ```rust
 #[cfg(debug_assertions)]
@@ -125,16 +164,39 @@ let builder = builder.plugin(
 
 `init()` is `Builder::new().build()`.
 
-## How it works
-
-The deck window doesn't use your frontend or its bundler. Its page lives inside the plugin and is served over the
-`devdeck://` protocol, so it works with any framework and adds nothing to your bundle. Sampling runs only while the
-deck window is open.
-
 ## Platforms
 
-Works wherever Tauri runs. WebView2 process roles are Windows-only. On macOS and Linux (WebKit) processes are shown
-by name. The JS heap needs `performance.memory`, which exists only in Chromium-based webviews (WebView2).
+Works wherever Tauri 2 runs. What differs is how much the web view tells about itself:
+
+| | Windows (WebView2) | Linux (WebKitGTK) | macOS (WKWebView) |
+|---|---|---|---|
+| Web view process roles | browser, page, GPU, network, storage, audio, utility | page, network, GPU | by process name |
+| JS heap | yes | shown as unavailable | shown as unavailable |
+
+- **JS heap** needs `performance.memory`, which exists only in Chromium-based web views. On WebKit the tile says
+  *Not available in this web view* instead of showing a misleading 0.
+- **Linux:** only real processes are counted. Threads, which the OS lists under `/proc` like processes (each with the
+  whole process's memory), are skipped.
+- **macOS:** WebKit content processes are started by the system, not as children of your app, so they may not appear
+  in the process list.
+
+## Reading the numbers right
+
+- **Close the web inspector while measuring.** An open DevTools/inspector keeps every request and console line and
+  runs in its own process (on Linux, with its own network process too). It can grow to gigabytes and look like your
+  app. Close it, or close it automatically with the [`devdeck:recording`](#the-devdeckrecording-event) event.
+- **The deck window is a page too.** It adds one more web view process; that memory is not your app's.
+- **Web view processes are per page.** To tell which is which, look at when a process appeared and how it reacts to
+  what you do: open a page and that page's process grows.
+
+## How it works
+
+The deck window doesn't use your frontend or its bundler. Its page is embedded in the plugin and served over the
+`devdeck://` protocol, so it works with any framework and adds nothing to your bundle.
+
+- The Rust side samples processes with [`sysinfo`](https://crates.io/crates/sysinfo), only while the deck window is
+  open: every second, or every 250 ms while recording.
+- The page side (`startDevdeck`) sends a small report — heap, element count, counters — every `reportIntervalMs`.
 
 ## License
 
