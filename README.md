@@ -20,7 +20,8 @@ Built to answer questions like *"why does the app take 6 GB after a night on thi
    if (import.meta.env.DEV) startDevdeck();
    ```
 
-3. Run the app and press **Ctrl+Alt+M**.
+3. Run the app and press **Ctrl+Alt+M** — or open the deck from your own code with `openDevdeck()` (see
+   [Options](#options)).
 
 ## Install
 
@@ -142,13 +143,35 @@ are safe to leave in your code.
 
 ```ts
 const stop = startDevdeck({
-	hotkey: "Ctrl+Shift+D",  // default: "Ctrl+Alt+M"
+	hotkey: "Ctrl+Shift+D",  // default: "Ctrl+Alt+M"; false — no built-in hotkey
 	reportIntervalMs: 2000   // how often the page sends its report, default: 1000
 });
 ```
 
 - `startDevdeck()` returns a function that stops it. A second call while it runs does nothing.
-- `openDevdeck()` opens (or focuses) the deck window from code, e.g. from a button.
+- `openDevdeck()` opens (or focuses) the deck window from code, e.g. from a button or your own shortcut.
+
+### Hotkey
+
+- Written as modifiers and a key joined with `+`: `Ctrl`, `Alt`, `Shift`, `Meta` (⌘ on macOS, ⊞ on Windows) and a
+  letter or digit — `"Ctrl+Alt+M"`, `"Meta+Shift+D"`. Case doesn't matter. The modifiers must match exactly:
+  `Ctrl+Alt+M` does not fire on `Ctrl+Alt+Shift+M`.
+- The key is matched by its **position**, not by the character it types (`KeyboardEvent.code`), so it works in any
+  keyboard layout — `M` is the same key in Cyrillic or AZERTY.
+- **AltGr is ignored.** On Windows, AltGr arrives as Ctrl+Alt, and in many layouts AltGr + letter types a character
+  (`ą`, `ś`, `€`…). Without this check, typing such a character in any input would open the deck.
+- Pick a combination your OS doesn't take first: shortcuts the system handles (on GNOME, for example,
+  `Ctrl+Alt+D` shows the desktop) never reach the page.
+- **`hotkey: false`** turns the built-in hotkey off — for apps that already have their own shortcut handling and
+  call `openDevdeck()` from it:
+
+  ```ts
+  startDevdeck({ hotkey: false });
+
+  window.addEventListener("keydown", event => {
+  	if (event.ctrlKey && event.altKey && event.code === "KeyA") void openDevdeck();
+  });
+  ```
 
 Window size, on the Rust side:
 

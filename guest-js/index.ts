@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 export interface DevdeckOptions {
-	hotkey?: string;
+	hotkey?: string | false;
 	reportIntervalMs?: number;
 }
 
@@ -82,9 +82,10 @@ export function openDevdeck(): Promise<void> {
 export function startDevdeck(options: DevdeckOptions = {}): () => void {
 	if (isStarted) return () => undefined;
 	isStarted = true;
-	const hotkey = parseHotkey(options.hotkey ?? "Ctrl+Alt+M");
+	const hotkey = options.hotkey === false ? null : parseHotkey(options.hotkey ?? "Ctrl+Alt+M");
 
 	const onKeyDown = (event: KeyboardEvent) => {
+		if (!hotkey || event.getModifierState("AltGraph")) return;
 		const isMatch = event.ctrlKey === hotkey.ctrl && event.altKey === hotkey.alt
 			&& event.shiftKey === hotkey.shift && event.metaKey === hotkey.meta && pressedKey(event) === hotkey.key;
 		if (!isMatch) return;
