@@ -153,7 +153,7 @@ const stop = startDevdeck({
 
 ### Hotkey
 
-- Written as modifiers and a key joined with `+`: `Ctrl`, `Alt`, `Shift`, `Meta` (⌘ on macOS, ⊞ on Windows) and a
+- Written as modifiers and a key joined with `+`: `Ctrl`, `Alt`, `Shift`, `Meta` (⊞ on Windows, ⌘ on macOS) and a
   letter or digit — `"Ctrl+Alt+M"`, `"Meta+Shift+D"`. Case doesn't matter. The modifiers must match exactly:
   `Ctrl+Alt+M` does not fire on `Ctrl+Alt+Shift+M`.
 - The key is matched by its **position**, not by the character it types (`KeyboardEvent.code`), so it works in any
@@ -191,10 +191,10 @@ let builder = builder.plugin(
 
 Works wherever Tauri 2 runs. What differs is how much the web view tells about itself:
 
-| | Windows (WebView2) | Linux (WebKitGTK) | macOS (WKWebView) |
+| | Linux (WebKitGTK) | Windows (WebView2) | macOS (WKWebView) |
 |---|---|---|---|
-| Web view process roles | browser, page, GPU, network, storage, audio, utility | page, network, GPU | by process name |
-| JS heap | yes | shown as unavailable | shown as unavailable |
+| Web view process roles | page, network, GPU | browser, page, GPU, network, storage, audio, utility | by process name |
+| JS heap | shown as unavailable | yes | shown as unavailable |
 
 - **JS heap** needs `performance.memory`, which exists only in Chromium-based web views. On WebKit the tile says
   *Not available in this web view* instead of showing a misleading 0.

@@ -134,12 +134,12 @@ pub fn read_recording<R: Runtime>(app: &AppHandle<R>, name: &str) -> Result<Vec<
 pub fn reveal<R: Runtime>(app: &AppHandle<R>, name: &str) -> Result<(), String> {
     let path = recording_path(app, name)?;
 
+    #[cfg(not(any(windows, target_os = "macos")))]
+    let result = std::process::Command::new("xdg-open").arg(path.parent().unwrap_or(&path)).spawn();
     #[cfg(windows)]
     let result = std::process::Command::new("explorer").arg(format!("/select,{}", path.display())).spawn();
     #[cfg(target_os = "macos")]
     let result = std::process::Command::new("open").arg("-R").arg(&path).spawn();
-    #[cfg(not(any(windows, target_os = "macos")))]
-    let result = std::process::Command::new("xdg-open").arg(path.parent().unwrap_or(&path)).spawn();
 
     let mut child = result.map_err(|e| e.to_string())?;
     std::thread::spawn(move || child.wait());
