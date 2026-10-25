@@ -6,8 +6,9 @@ plus a recorder to capture a session and study it on a timeline.
 
 Built to answer questions like *"why does the app take 6 GB after a night on this screen?"* without guessing.
 
-> **Status:** early. **Monitor** and **Recording** are ready. Planned: **Controls** (put the app into any state for
-> previews) and **Capture** (screenshots and animated WebP of a window).
+> **Scope:** **Monitor** and **Recording** — memory, CPU and leaks. That is the whole tool: new versions fix and polish
+> it, they don't grow it. For screenshots and checking UI states, see
+> [webview-preview](https://www.npmjs.com/package/webview-preview).
 
 ## Quick start
 
