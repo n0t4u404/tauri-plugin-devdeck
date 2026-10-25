@@ -25,18 +25,20 @@ Built to answer questions like *"why does the app take 6 GB after a night on thi
 
 ## Install
 
-**Rust** — `src-tauri/Cargo.toml`:
+**Rust:**
 
-```toml
-[dependencies]
-tauri-plugin-devdeck = { git = "https://github.com/n0t4u404/tauri-plugin-devdeck", branch = "main" }
+```sh
+cd src-tauri
+cargo add tauri-plugin-devdeck
 ```
 
 **JavaScript:**
 
 ```sh
-npm i github:n0t4u404/tauri-plugin-devdeck#main
+npm i tauri-plugin-devdeck
 ```
+
+Keep both at the same version: the page side and the Rust side talk to each other.
 
 **Register** the plugin, in debug builds only:
 
