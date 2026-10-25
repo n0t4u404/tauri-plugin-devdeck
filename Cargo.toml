@@ -10,7 +10,7 @@ keywords = ["tauri", "tauri-plugin", "devtools", "memory", "profiling"]
 categories = ["development-tools", "gui"]
 links = "tauri-plugin-devdeck"
 rust-version = "1.77"
-exclude = ["/node_modules", "/guest-js", "/dist", "/package.json", "/package-lock.json", "/tsconfig.json"]
+exclude = ["/node_modules", "/guest-js", "/ui", "/dist", "/package.json", "/package-lock.json", "/tsconfig.json"]
 
 [dependencies]
 tauri = "2"

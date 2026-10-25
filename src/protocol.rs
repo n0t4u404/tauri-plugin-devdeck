@@ -5,30 +5,7 @@ use tauri::{
 };
 
 const HTML: &str = "text/html; charset=utf-8";
-const CSS: &str = "text/css; charset=utf-8";
-const JS: &str = "text/javascript; charset=utf-8";
-
-const FILES: &[(&str, &str, &[u8])] = &[
-    ("/index.html", HTML, include_bytes!("ui/index.html")),
-    ("/style.css", CSS, include_bytes!("ui/style.css")),
-    ("/fonts/inter-latin.woff2", "font/woff2", include_bytes!("ui/fonts/inter-latin.woff2")),
-    ("/js/main.js", JS, include_bytes!("ui/js/main.js")),
-    ("/js/shared/api.js", JS, include_bytes!("ui/js/shared/api.js")),
-    ("/js/shared/chart.js", JS, include_bytes!("ui/js/shared/chart.js")),
-    ("/js/shared/format.js", JS, include_bytes!("ui/js/shared/format.js")),
-    ("/js/shared/processes.js", JS, include_bytes!("ui/js/shared/processes.js")),
-    ("/js/shared/tabs.js", JS, include_bytes!("ui/js/shared/tabs.js")),
-    ("/js/monitor/monitor.js", JS, include_bytes!("ui/js/monitor/monitor.js")),
-    ("/js/monitor/panel.js", JS, include_bytes!("ui/js/monitor/panel.js")),
-    ("/js/monitor/stat.js", JS, include_bytes!("ui/js/monitor/stat.js")),
-    ("/js/recording/record-button.js", JS, include_bytes!("ui/js/recording/record-button.js")),
-    ("/js/recording/timeline.js", JS, include_bytes!("ui/js/recording/timeline.js")),
-    ("/js/recording/state.js", JS, include_bytes!("ui/js/recording/state.js")),
-    ("/js/recording/prepare.js", JS, include_bytes!("ui/js/recording/prepare.js")),
-    ("/js/recording/draw.js", JS, include_bytes!("ui/js/recording/draw.js")),
-    ("/js/recording/summary.js", JS, include_bytes!("ui/js/recording/summary.js")),
-    ("/js/recording/interaction.js", JS, include_bytes!("ui/js/recording/interaction.js"))
-];
+const FILES: &[(&str, &str, &[u8])] = &[("/index.html", HTML, include_bytes!("ui-dist/index.html"))];
 
 fn file(path: &str) -> Option<(&'static str, &'static [u8])> {
     let path = if path == "/" { "/index.html" } else { path };

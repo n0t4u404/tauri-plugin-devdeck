@@ -220,10 +220,15 @@ The deck window doesn't use your frontend or its bundler. Its page is embedded i
 - The Rust side samples processes with [`sysinfo`](https://crates.io/crates/sysinfo), only while the deck window is
   open: every second, or every 250 ms while recording.
 - The page side (`startDevdeck`) sends a small report — heap, element count, counters — every `reportIntervalMs`.
+- The deck window itself is a React + [MUI](https://mui.com/) page built into one file, `src/ui-dist/index.html`,
+  and served by the plugin from memory: no Node is needed to build an app that uses the plugin.
+
+## Working on the deck page
+
+The source is in `ui/`. `npm run dev:ui` serves it with hot reload (it reads `samples`, `recordings` … from the
+plugin, so point it at a running app or answer those requests with mocks); `npm run build:ui` type-checks it and
+writes `src/ui-dist/index.html` — commit that file together with the source.
 
 ## License
 
 MIT © n0t4u404
-
-The deck page uses the [Inter](https://github.com/rsms/inter) font, © The Inter Project Authors, licensed under the
-SIL Open Font License 1.1. See [`src/ui/fonts/OFL.txt`](src/ui/fonts/OFL.txt).
